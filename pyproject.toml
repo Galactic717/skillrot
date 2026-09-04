@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "skillrot"
+version = "0.1.0"
+description = "Find the dead weight in your agent's skill library."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Hlib Stepanov" }]
+keywords = ["agent-skills", "claude-code", "claude-skills", "linter", "context", "llm"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/Galactic717/skillrot"
+Issues = "https://github.com/Galactic717/skillrot/issues"
+
+[project.scripts]
+skillrot = "skillrot:main"
+
+[tool.setuptools]
+py-modules = ["skillrot"]
