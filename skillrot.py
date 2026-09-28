@@ -299,7 +299,9 @@ def _directory_name(path: Path) -> str:
     return name
 
 
-def load_skill(path: Path) -> Skill:
+def load_skill(path: Path, plugin: Optional[str] = None) -> Skill:
+    """Load one SKILL.md. `plugin` is the owning plugin when a manifest named
+    it; otherwise the plugin (if any) is inferred from the path."""
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError as exc:  # unreadable file is a finding, not a crash
@@ -308,14 +310,15 @@ def load_skill(path: Path) -> Skill:
             frontmatter={}, body="", problems=["unreadable: {}".format(exc)],
         )
     fm, body, problems = parse_frontmatter(text)
-    origin, plugin = _classify(path)
-    directory = _directory_name(path)
+    origin, inferred = ("plugin", plugin) if plugin else _classify(path)
+    plugin = inferred
+    # Frontmatter `name` wins over the directory name, for plugin and local
+    # skills alike; a plugin keeps its prefix in front of it.
+    leaf = fm.get("name") or _directory_name(path) or path.stem
     if plugin:
-        # Plugin skills take their last command segment from `name`, else the dir.
-        leaf = fm.get("name") or directory
         command = leaf if leaf.startswith(plugin + ":") else "{}:{}".format(plugin, leaf)
     else:
-        command = directory or fm.get("name", "") or path.stem
+        command = leaf
     return Skill(
         path=path, root=path.parent, origin=origin, command=command,
         frontmatter=fm, body=body, problems=problems, plugin=plugin,
@@ -336,26 +339,88 @@ def default_roots() -> List[Path]:
     return [c for c in candidates if c.is_dir()]
 
 
-def discover(roots: Sequence[Path], shallow_roots: Sequence[Path] = ()) -> List[Skill]:
+def _read_json(path: Path) -> Optional[dict]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+        return data if isinstance(data, dict) else None
+    except (ValueError, OSError):
+        return None
+
+
+def _plugin_skill_files(
+    plugin_root: Path, entry: Optional[dict] = None
+) -> List[Tuple[Path, str]]:
+    """The SKILL.md files Claude Code loads from one plugin.
+
+    Default `skills/<name>/SKILL.md`, plus any manifest `skills` paths (each a
+    folder of skill folders, or one folder holding SKILL.md). A plugin with a
+    root SKILL.md and neither of those loads as a single skill. When there is
+    no plugin.json, the marketplace entry is the manifest.
+    """
+    manifest = _read_json(plugin_root / ".claude-plugin" / "plugin.json") or entry or {}
+    name = str(manifest.get("name") or (entry or {}).get("name") or plugin_root.resolve().name)
+    extra = manifest.get("skills")
+    extra = [extra] if isinstance(extra, str) else [p for p in (extra or []) if isinstance(p, str)]
+    found: List[Path] = []
+    for folder in [plugin_root / "skills"] + [plugin_root / p for p in extra]:
+        if (folder / "SKILL.md").is_file():
+            found.append(folder / "SKILL.md")
+        elif folder.is_dir():
+            found.extend(sorted(folder.glob("*/SKILL.md")))
+    if not found and not extra and (plugin_root / "SKILL.md").is_file():
+        found.append(plugin_root / "SKILL.md")
+    return [(path, name) for path in found]
+
+
+def manifest_skill_files(root: Path) -> Optional[List[Tuple[Path, str]]]:
+    """Skills a marketplace or plugin checkout would actually install.
+
+    Returns None when `root` is neither, so the caller falls back to a plain
+    recursive scan. Without this, a repo's translated docs and mirrors for
+    other harnesses (docs/ja-JP/skills, .gemini/skills, ...) were counted as
+    installed skills and inflated the bill several times over.
+    ponytail: only local (string) plugin sources resolve; github/url sources
+    aren't in this checkout, so they're skipped rather than fetched.
+    """
+    market = _read_json(root / ".claude-plugin" / "marketplace.json")
+    if market is not None:
+        found: List[Tuple[Path, str]] = []
+        for entry in market.get("plugins") or []:
+            source = entry.get("source") if isinstance(entry, dict) else None
+            if isinstance(source, str):
+                found.extend(_plugin_skill_files(root / source, entry))
+        return found
+    if (root / ".claude-plugin" / "plugin.json").is_file():
+        return _plugin_skill_files(root)
+    return None
+
+
+def discover(
+    roots: Sequence[Path], shallow_roots: Sequence[Path] = (), scan_all: bool = False
+) -> List[Skill]:
     """Find and load every unique SKILL.md under the roots.
 
     A root in `shallow_roots` is scanned one level deep (`*/SKILL.md`), the way
     Claude Code loads an install directory: a whole repo dropped into
     `~/.claude/skills/foo/` is one skill at `foo/SKILL.md`, not every nested
-    SKILL.md it happens to contain. Every other root is scanned recursively, so
-    pointing skillrot at a marketplace or a collection still audits all of it.
+    SKILL.md it happens to contain. A marketplace or plugin checkout is read
+    through its manifest, so only what Claude Code would install is counted.
+    Any other root is scanned recursively; `scan_all` forces that everywhere.
     """
     shallow = {Path(r) for r in shallow_roots}
     seen: Set[Path] = set()
-    paths: List[Path] = []
+    paths: List[Tuple[Path, Optional[str]]] = []
     for root in roots:
+        manifest = None if (scan_all or root.is_file()) else manifest_skill_files(root)
         if root.is_file():
-            found: Iterable[Path] = [root]
+            found: Iterable[Tuple[Path, Optional[str]]] = [(root, None)]
         elif root in shallow:
-            found = sorted(root.glob("*/SKILL.md"))
+            found = [(p, None) for p in sorted(root.glob("*/SKILL.md"))]
+        elif manifest is not None:
+            found = manifest
         else:
-            found = sorted(root.rglob("SKILL.md"))
-        for path in found:
+            found = [(p, None) for p in sorted(root.rglob("SKILL.md"))]
+        for path, plugin in found:
             try:
                 resolved = path.resolve()
             except OSError:
@@ -363,14 +428,14 @@ def discover(roots: Sequence[Path], shallow_roots: Sequence[Path] = ()) -> List[
             if resolved in seen:
                 continue
             seen.add(resolved)
-            paths.append(path)
+            paths.append((path, plugin))
     if not paths:
         return []
     # Reads are I/O bound (often on an external disk); load in parallel but
     # keep discovery order so output is deterministic.
     workers = min(32, (os.cpu_count() or 4) * 4, len(paths))
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        return list(pool.map(load_skill, paths))
+        return list(pool.map(lambda item: load_skill(*item), paths))
 
 
 # --- Usage evidence -------------------------------------------------------
@@ -1053,6 +1118,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--svg", type=Path, default=None,
         help="Write a budget chart (SVG) to this path.")
     parser.add_argument(
+        "--all", action="store_true",
+        help="Count every SKILL.md under a path, ignoring plugin/marketplace manifests.")
+    parser.add_argument(
         "--fail-on", choices=("never", "error", "warn"), default="never",
         help="Exit non-zero at this severity. Use in CI.")
     parser.add_argument(
@@ -1084,7 +1152,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if not roots:
         return 2
 
-    skills = discover(roots, shallow_roots=shallow)
+    skills = discover(roots, shallow_roots=shallow, scan_all=args.all)
     if not skills:
         sys.stderr.write("skillrot: found no SKILL.md under {}\n".format(
             ", ".join(str(r) for r in roots)))

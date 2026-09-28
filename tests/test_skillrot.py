@@ -297,7 +297,7 @@ class DiscoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "myskill"
             root.mkdir()
-            (root / "SKILL.md").write_text(GOOD, encoding="utf-8")
+            (root / "SKILL.md").write_text(GOOD.replace("name: deploy\n", ""), encoding="utf-8")
             previous = Path.cwd()
             os.chdir(root)
             try:
@@ -506,6 +506,21 @@ class BundleBytesTests(unittest.TestCase):
             self.assertLess(total, 5000)  # the 100k nested file is excluded
 
 
+class CommandNameTests(unittest.TestCase):
+    def test_frontmatter_name_beats_directory_for_local_skills(self):
+        # Docs: .claude/skills/deploy-staging/SKILL.md with name: deploy -> /deploy
+        with tempfile.TemporaryDirectory() as tmp:
+            write_skill(Path(tmp), "deploy-staging", GOOD)
+            self.assertEqual(skillrot.discover([Path(tmp)])[0].command, "deploy")
+
+    def test_same_name_in_two_dirs_is_a_command_collision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_skill(Path(tmp), "deploy-staging", GOOD)
+            write_skill(Path(tmp), "deploy-prod", GOOD)
+            rules = {f.rule for f in skillrot.analyze(skillrot.discover([Path(tmp)]))}
+            self.assertIn("SR020", rules)
+
+
 class ShallowDiscoveryTests(unittest.TestCase):
     def test_shallow_root_scans_one_level_only(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -513,9 +528,47 @@ class ShallowDiscoveryTests(unittest.TestCase):
             write_skill(root, "top", GOOD)                       # root/top/SKILL.md
             write_skill(root / "repo" / "deep", "buried", GOOD)  # root/repo/deep/SKILL.md
             shallow = skillrot.discover([root], shallow_roots=[root])
-            self.assertEqual([s.command for s in shallow], ["top"])
+            self.assertEqual([s.path.parent.name for s in shallow], ["top"])
             deep = skillrot.discover([root])
-            self.assertEqual(sorted(s.command for s in deep), ["buried", "top"])
+            self.assertEqual(sorted(s.path.parent.name for s in deep), ["buried", "top"])
+
+
+class ManifestDiscoveryTests(unittest.TestCase):
+    def make_marketplace(self, root: Path):
+        (root / ".claude-plugin").mkdir(parents=True)
+        (root / ".claude-plugin" / "marketplace.json").write_text(json.dumps(
+            {"name": "m", "plugins": [{"name": "p", "source": "./p"},
+                                      {"name": "remote", "source": {"source": "github"}}]}),
+            encoding="utf-8")
+        plugin = root / "p"
+        (plugin / ".claude-plugin").mkdir(parents=True)
+        (plugin / ".claude-plugin" / "plugin.json").write_text(
+            json.dumps({"name": "p", "skills": ["./extra"]}), encoding="utf-8")
+        write_skill(plugin / "skills", "real", GOOD)
+        write_skill(plugin / "extra", "added", GOOD)
+        # Mirrors a real repo carries that Claude Code never installs.
+        write_skill(root / "docs" / "ja-JP" / "skills", "real", GOOD)
+        write_skill(root / ".gemini" / "skills", "real", GOOD)
+
+    def test_marketplace_counts_only_what_the_manifest_installs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.make_marketplace(Path(tmp))
+            skills = skillrot.discover([Path(tmp)])
+            self.assertEqual(sorted(s.command for s in skills), ["p:deploy", "p:deploy"])
+            self.assertTrue(all(s.origin == "plugin" for s in skills))
+
+    def test_scan_all_still_counts_every_skill_md(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.make_marketplace(Path(tmp))
+            self.assertEqual(len(skillrot.discover([Path(tmp)], scan_all=True)), 4)
+
+    def test_plugin_root_skill_md_loads_as_single_skill(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".claude-plugin").mkdir()
+            (root / ".claude-plugin" / "plugin.json").write_text('{"name": "solo"}', encoding="utf-8")
+            (root / "SKILL.md").write_text(GOOD, encoding="utf-8")
+            self.assertEqual(len(skillrot.discover([root])), 1)
 
 
 class SvgTests(unittest.TestCase):
