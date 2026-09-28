@@ -58,7 +58,7 @@ run on affaan-m/ECC → the weekly five-library results → install line.
 > 1% of the context window. Past it, Claude Code silently drops descriptions — least used
 > first — and those skills stop getting picked.
 >
-> I audited 5 popular skill libraries. 4 are over it. One is 22.7× over.
+> I audited 5 popular skill libraries. 4 are over it. One is 27× over.
 
 **First reply (the link):**
 
@@ -67,13 +67,13 @@ run on affaan-m/ECC → the weekly five-library results → install line.
 
 **Thread, 2 — the numbers (list, like the caveman post):**
 
-> Live audit, 2026-09-28 (listing vs. budget, 200k window):
+> Live audit, 2026-09-28 (skills + commands, listing vs. budget, 200k window):
 >
-> > obra/superpowers — 0.33× ✓
-> > addyosmani/agent-skills — 1.17× (2 skills name-only)
-> > affaan-m/ECC — 11.8× (278 name-only)
+> > obra/superpowers — 0.35× ✓
+> > addyosmani/agent-skills — 1.3× (5 name-only)
+> > affaan-m/ECC — 13.2× (all 375 name-only)
 > > ComposioHQ/awesome-claude-skills — 14.2× (all 864)
-> > alirezarezvani/claude-skills — 22.7× (372)
+> > alirezarezvani/claude-skills — 27.4× (483)
 >
 > Re-run every Monday in public CI.
 
@@ -107,7 +107,7 @@ run on affaan-m/ECC → the weekly five-library results → install line.
 > Claude Code gives your skill listing 1% of the context window. Past that, it silently
 > drops descriptions and those skills stop getting picked.
 >
-> 4 of 5 popular skill libraries I audited are over. One is 22.7× over.
+> 4 of 5 popular skill libraries I audited are over. One is 27× over.
 >
 > (link in reply)
 
@@ -128,9 +128,10 @@ run on affaan-m/ECC → the weekly five-library results → install line.
 ## Rules for the copy
 
 - Lead with the reader's cost, then the number. The product name comes last.
-- Only numbers from `docs/runs/`. Say "≈" where it's an estimate; skill counts are what
-  the manifests install, and the budget figure is a lower bound (commands aren't counted).
+- Only numbers from `docs/runs/`. Say "≈" where it is an estimate; counts are what the
+  manifests install (skills + commands). Bundled and claude.ai-synced skills are not on
+  disk, so a real session lists a little more, never less.
 - Measure, don't dunk. Name libraries only next to their numbers, and offer the fix
   (`skillOverrides`, shorter descriptions) — maintainers are the best amplifiers.
 - English for the public post; the audience is global Claude Code users.
-- Nothing gets posted from the maintainer's account without the maintainer posting it.
+- Nothing goes out from the maintainer's account without the maintainer's go-ahead.

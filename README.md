@@ -15,21 +15,23 @@ Zero dependencies. One file. Python 3.9+.
 ```
 $ python skillrot.py ./ECC
 
-skillrot 0.2.0
+skillrot 0.3.0
 
   Context bill
-    292 skills discovered
-    ~2,000 tokens in the always-on listing  (1.0% of a 200,000-token window)
-    ~2,000 tok listing budget (1182% requested)
-    over budget by ~21,639 tok: descriptions are being dropped
-    ~637,625 tokens of skill bodies waiting to load
+    292 skills + 94 commands discovered
+    2 kept out of context (disable-model-invocation / skillOverrides)
+    ~2,027 tokens in the always-on listing  (1.0% of a 200,000-token window)
+    ~2,000 tok listing budget (1319% requested)
+    over budget by ~24,388 tok: descriptions are being dropped
+    ~727,884 tokens of skill bodies waiting to load
+    4.7MB on disk
 
   Heaviest listings  (paid on every message)
-      148 tok  /ecc:intent-driven-development
-      146 tok  /ecc:flox-environments
-      131 tok  /ecc:benchmark-methodology
+      149 tok  /ecc:intent-driven-development
+      148 tok  /ecc:flox-environments
+      132 tok  /ecc:benchmark-methodology
 
-  0 error(s), 36 warning(s), 278 name-only
+  0 error(s), 45 warning(s), 375 name-only
 ```
 
 ## The budget nobody sees
@@ -43,15 +45,16 @@ keyword. It's installed, it's billed on every message, and it's unroutable.
 This repo re-audits popular public libraries every week
 ([live-audit.yml](.github/workflows/live-audit.yml)). The run on 2026-09-28:
 
-| Library | Skills | Listing vs. budget | Name-only |
+| Library | Skills + commands | Listing vs. budget | Name-only |
 | --- | ---: | ---: | ---: |
-| [obra/superpowers](https://github.com/obra/superpowers) | 15 | 0.33× | 0 |
-| [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) | 25 | 1.17× | 2 |
-| [affaan-m/ECC](https://github.com/affaan-m/ECC) | 292 | 11.8× | 278 |
-| [ComposioHQ/awesome-claude-skills](https://github.com/ComposioHQ/awesome-claude-skills) | 864 | 14.2× | 864 |
-| [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) | 382 | 22.7× | 372 |
+| [obra/superpowers](https://github.com/obra/superpowers) | 15 + 0 | 0.35× | 0 |
+| [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) | 25 + 9 | 1.3× | 5 |
+| [affaan-m/ECC](https://github.com/affaan-m/ECC) | 292 + 94 | 13.2× | 375 |
+| [ComposioHQ/awesome-claude-skills](https://github.com/ComposioHQ/awesome-claude-skills) | 864 + 0 | 14.2× | 864 |
+| [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) | 382 + 104 | 27.4× | 483 |
 
-Even a tidy 25-skill library already spills two descriptions at a 200k window. Full output
+Even a tidy 25-skill library spills five descriptions at a 200k window, and in ECC the
+names alone overflow the budget, so every description is dropped. Full output
 in [docs/runs](docs/runs/live-audit-2026-09-28.md). This is not a lab result: a widely-used
 library shipped 46 skills at ~3× the budget and Claude Code silently dropped most of them at
 session start ([lifeos#1205](https://github.com/danielmiessler/lifeos/issues/1205)).

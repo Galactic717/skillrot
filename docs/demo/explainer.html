@@ -184,28 +184,28 @@ ROWS.forEach(([n, d], i) => {
 // --- S3 terminal: the real output of the 2026-09-28 live audit of affaan-m/ECC.
 const CMD = "python skillrot.py ./ECC";
 const OUT = [
-  ["", ""], ["w", "skillrot 0.2.0"], ["", ""], ["w", "  Context bill"],
-  ["", "    292 skills discovered"],
-  ["", "    ~2,000 tokens in the always-on listing  (1.0% of a 200,000-token window)"],
-  ["", "    ~2,000 tok listing budget (1182% requested)"],
-  ["hi", "    over budget by ~21,639 tok: descriptions are being dropped"],
-  ["", "    ~637,625 tokens of skill bodies waiting to load"],
+  ["", ""], ["w", "skillrot 0.3.0"], ["", ""], ["w", "  Context bill"],
+  ["", "    292 skills + 94 commands discovered"],
+  ["", "    ~2,027 tokens in the always-on listing  (1.0% of a 200,000-token window)"],
+  ["", "    ~2,000 tok listing budget (1319% requested)"],
+  ["hi", "    over budget by ~24,388 tok: descriptions are being dropped"],
+  ["", "    ~727,884 tokens of skill bodies waiting to load"],
   ["", ""], ["w", "  Heaviest listings  (paid on every message)"],
-  ["", "      148 tok  /ecc:intent-driven-development"],
-  ["", "      146 tok  /ecc:flox-environments"],
-  ["", "      131 tok  /ecc:benchmark-methodology"],
+  ["", "      149 tok  /ecc:intent-driven-development"],
+  ["", "      148 tok  /ecc:flox-environments"],
+  ["", "      132 tok  /ecc:benchmark-methodology"],
   ["", "      …"],
-  ["verdict", "  0 error(s), 36 warning(s), 278 name-only"],
+  ["verdict", "  0 error(s), 45 warning(s), 375 name-only"],
 ];
 const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 
 // --- S4: live-audit results (requested / budget), run 2026-09-28.
 const LIBS = [
-  ["obra/superpowers", 15, 0.33, 0],
-  ["addyosmani/agent-skills", 25, 1.17, 2],
-  ["affaan-m/ECC", 292, 11.82, 278],
-  ["ComposioHQ/awesome-claude-skills", 864, 14.2, 864],
-  ["alirezarezvani/claude-skills", 382, 22.74, 372],
+  ["obra/superpowers", "15 skills", 0.35, 0],
+  ["addyosmani/agent-skills", "25 skills · 9 commands", 1.33, 5],
+  ["affaan-m/ECC", "292 skills · 94 commands", 13.19, 375],
+  ["ComposioHQ/awesome-claude-skills", "864 skills", 14.2, 864],
+  ["alirezarezvani/claude-skills", "382 skills · 104 commands", 27.36, 483],
 ];
 const LOG_MIN = -1, LOG_MAX = Math.log10(30), TRACK = 560;
 const xOf = v => (Math.log10(v) - LOG_MIN) / (LOG_MAX - LOG_MIN) * TRACK;
@@ -218,7 +218,7 @@ const board = $("board");
 LIBS.forEach(([repo, n, x, drop], i) => {
   const over = x > 1;
   board.insertAdjacentHTML("beforeend", `<div class="lrow" id="l${i}">
-    <div class="repo">${repo}</div><div class="n">${n} skills</div>
+    <div class="repo">${repo}</div><div class="n">${n}</div>
     <div class="track"><div class="fill" id="lf${i}" style="background:${over ? "var(--critical)" : "var(--good)"}"></div></div>
     <div class="x">${x < 1 ? x.toFixed(2) : x.toFixed(1)}×</div>
     <div class="st"><span class="ico" style="background:${over ? "var(--critical)" : "var(--good)"}">${over ? "✕" : "✓"}</span>${over ? drop + " name-only" : "fits"}</div></div>`);
@@ -277,7 +277,7 @@ function seek(t) {
   let html = `<span class="p">$</span> <span class="c">${esc(CMD.slice(0, typed))}</span>${lines === 0 ? cursor : ""}\n`;
   OUT.slice(0, lines).forEach(([k, s]) => {
     if (k === "verdict") {
-      html += esc(s).replace("278 name-only", `<span class="hi">278 name-only</span>`) + "\n";
+      html += esc(s).replace("375 name-only", `<span class="hi">375 name-only</span>`) + "\n";
     } else {
       html += k ? `<span class="${k}">${esc(s)}</span>\n` : esc(s) + "\n";
     }
