@@ -594,6 +594,139 @@ class ManifestDiscoveryTests(unittest.TestCase):
             self.assertEqual(len(skillrot.discover([root])), 1)
 
 
+class CommandFileTests(unittest.TestCase):
+    def make_plugin(self, root: Path, manifest: dict):
+        (root / ".claude-plugin").mkdir(parents=True)
+        (root / ".claude-plugin" / "plugin.json").write_text(json.dumps(manifest), encoding="utf-8")
+        write_skill(root / "skills", "review", GOOD.replace("name: deploy\n", ""))
+        (root / "commands").mkdir()
+        (root / "commands" / "ship.md").write_text("Ship the current branch.\n", encoding="utf-8")
+
+    def test_plugin_commands_join_the_listing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.make_plugin(Path(tmp), {"name": "p"})
+            found = {(s.command, s.kind) for s in skillrot.discover([Path(tmp)])}
+            self.assertEqual(found, {("p:review", "skill"), ("p:ship", "command")})
+
+    def test_manifest_commands_key_replaces_the_default_folder(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_plugin(root, {"name": "p", "commands": ["./extra"]})
+            (root / "extra").mkdir()
+            (root / "extra" / "lint.md").write_text("Lint it.\n", encoding="utf-8")
+            commands = {s.command for s in skillrot.discover([root]) if s.kind == "command"}
+            self.assertEqual(commands, {"p:lint"})
+
+    def test_local_command_names_follow_the_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "frontend").mkdir()
+            (root / "deploy.md").write_text("Deploy.\n", encoding="utf-8")
+            (root / "frontend" / "component.md").write_text("Make one.\n", encoding="utf-8")
+            names = sorted(e[3] for e in skillrot.command_entries(root))
+            self.assertEqual(names, ["deploy", "frontend:component"])
+
+    def test_command_without_frontmatter_is_not_an_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.make_plugin(Path(tmp), {"name": "p"})
+            findings = skillrot.analyze(skillrot.discover([Path(tmp)]))
+            self.assertEqual([f for f in findings if f.command == "p:ship"], [])
+
+    def test_skill_and_command_with_one_name_list_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_plugin(root, {"name": "p"})
+            (root / "commands" / "review.md").write_text("Review.\n", encoding="utf-8")
+            skills = skillrot.discover([root])
+            self.assertEqual(len(skills), 3)
+            self.assertEqual(len(skillrot._listed(skills)), 2)
+            self.assertIn("SR020", {f.rule for f in skillrot.analyze(skills)})
+
+
+class ListingVisibilityTests(unittest.TestCase):
+    def make(self, command, **frontmatter):
+        fm = {"description": "Use when the user asks about {} things.".format(command)}
+        fm.update(frontmatter)
+        return skillrot.Skill(path=Path(command) / "SKILL.md", root=Path(command),
+                              origin="scanned", command=command, frontmatter=fm, body="")
+
+    def test_disable_model_invocation_is_not_billed(self):
+        hidden = self.make("manual", **{"disable-model-invocation": "true"})
+        totals = skillrot.budget([self.make("auto"), hidden], 4.0, 200_000)
+        alone = skillrot.budget([self.make("auto")], 4.0, 200_000)
+        self.assertEqual(totals.requested_tokens, alone.requested_tokens)
+        self.assertEqual(totals.hidden, 1)
+
+    def test_overrides_off_and_name_only(self):
+        off, short = self.make("off"), self.make("short")
+        off.override, short.override = "off", "name-only"
+        totals = skillrot.budget([off, short], 4.0, 200_000)
+        self.assertEqual(totals.hidden, 1)
+        self.assertEqual(totals.desc_tokens, 0)
+        findings = skillrot.analyze([off, short], usage={}, listing_budget=0)
+        self.assertNotIn("SR030", {f.rule for f in findings})
+
+    def test_missing_description_falls_back_to_first_body_line(self):
+        skill = skillrot.Skill(path=Path("x/SKILL.md"), root=Path("x"), origin="scanned",
+                               command="x", frontmatter={}, body="\n# Format tables\nMore.\n")
+        self.assertEqual(skill.routing_text, "Format tables")
+
+
+class InstalledPluginTests(unittest.TestCase):
+    def test_enabled_plugins_resolve_through_cache_and_directory_marketplaces(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            plugins = home / ".claude" / "plugins"
+            cached = plugins / "cache" / "m1" / "cached" / "1.0.0"
+            write_skill(cached / "skills", "a", GOOD.replace("name: deploy\n", ""))
+            market = home / "dev-market"
+            (market / ".claude-plugin").mkdir(parents=True)
+            (market / ".claude-plugin" / "marketplace.json").write_text(json.dumps(
+                {"plugins": [{"name": "local", "source": "./local"},
+                             {"name": "off", "source": "./off"}]}), encoding="utf-8")
+            write_skill(market / "local" / "skills", "b", GOOD.replace("name: deploy\n", ""))
+            write_skill(market / "off" / "skills", "c", GOOD.replace("name: deploy\n", ""))
+            (plugins / "installed_plugins.json").write_text(json.dumps({"plugins": {
+                "cached@m1": [{"installPath": str(cached)}],
+                "local@dev": [{"installPath": str(plugins / "cache" / "gone")}]}}),
+                encoding="utf-8")
+            (plugins / "known_marketplaces.json").write_text(json.dumps(
+                {"dev": {"installLocation": str(market)}}), encoding="utf-8")
+            settings = {"enabledPlugins": {"cached@m1": True, "local@dev": True,
+                                           "off@dev": False}}
+            entries = skillrot.installed_plugin_entries(home, settings)
+            skills = skillrot.discover([], extra=entries)
+            self.assertEqual(sorted(s.command for s in skills), ["cached:a", "local:b"])
+
+    def test_no_enabled_plugins_means_fall_back(self):
+        self.assertIsNone(skillrot.installed_plugin_entries(Path("/nowhere"), {}))
+
+    def test_settings_merge_project_over_user(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home, proj = Path(tmp) / "home", Path(tmp) / "proj"
+            (home / ".claude").mkdir(parents=True)
+            (proj / ".claude").mkdir(parents=True)
+            (proj / ".git").mkdir()
+            (home / ".claude" / "settings.json").write_text(json.dumps(
+                {"enabledPlugins": {"a@m": True}, "skillListingBudgetFraction": 0.01}),
+                encoding="utf-8")
+            (proj / ".claude" / "settings.local.json").write_text(json.dumps(
+                {"enabledPlugins": {"b@m": True}, "skillListingBudgetFraction": 0.02}),
+                encoding="utf-8")
+            merged = skillrot.load_settings(home, proj)
+            self.assertEqual(merged["enabledPlugins"], {"a@m": True, "b@m": True})
+            self.assertEqual(merged["skillListingBudgetFraction"], 0.02)
+
+
+class TypedCommandUsageTests(unittest.TestCase):
+    def test_user_typed_slash_commands_count_as_invocations(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            line = ('{"type":"user","message":{"content":"<command-name>/caveman:caveman'
+                    '</command-name>"}}')
+            (Path(tmp) / "s.jsonl").write_text(line + "\n" + line + "\n", encoding="utf-8")
+            self.assertEqual(skillrot.usage_counts(Path(tmp))["caveman:caveman"], 2)
+
+
 class SvgTests(unittest.TestCase):
     def test_svg_is_well_formed_xml(self):
         import xml.dom.minidom as minidom

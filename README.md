@@ -117,14 +117,26 @@ skillrot --no-usage             # skip the transcript scan
 skillrot ./repo --all           # count every SKILL.md, ignoring plugin manifests
 ```
 
-With no path it scans your install locations — `~/.claude/skills`, `~/.claude/plugins`,
-`~/.codex/skills`, `~/.cursor/skills`, `~/.config/agent-skills` and `./.claude/skills` —
-reading each **skills** directory one level deep, the way the loader does: a whole repo
-dropped into `~/.claude/skills/foo/` is one skill at `foo/SKILL.md`, not every nested
-`SKILL.md` it happens to contain. Point it at a marketplace or plugin checkout and it reads
-`.claude-plugin/marketplace.json` / `plugin.json`, counting only the skills Claude Code would
-install — not translated docs or mirrors for other harnesses (`docs/ja-JP/skills`,
-`.gemini/skills`, ...). Any other folder is scanned recursively.
+With no path it audits what Claude Code on this machine actually loads:
+
+- personal and project skills (`~/.claude/skills`, and `.claude/skills` from the current
+  directory up to the repo root), one level deep, the way the loader reads them — a whole
+  repo dropped into `~/.claude/skills/foo/` is one skill at `foo/SKILL.md`;
+- legacy command files in `~/.claude/commands` and `.claude/commands` (`frontend/component.md`
+  is `/frontend:component`), which share the same listing;
+- every plugin enabled in your settings, resolved through the install cache or, for a
+  directory marketplace, from its source folder — skills *and* commands;
+- your `skillOverrides` (`off` and `user-invocable-only` hide a skill, `name-only` lists
+  just the name), `skillListingBudgetFraction` and `SLASH_COMMAND_TOOL_CHAR_BUDGET`.
+
+Skills with `disable-model-invocation: true` are never in the model's context, so they
+aren't billed. `~/.codex/skills`, `~/.cursor/skills` and `~/.config/agent-skills` are
+audited too if they exist.
+
+Point it at a marketplace or plugin checkout and it reads `.claude-plugin/marketplace.json`
+/ `plugin.json`, counting only what Claude Code would install — not translated docs or
+mirrors for other harnesses (`docs/ja-JP/skills`, `.gemini/skills`, ...). Any other folder
+is scanned recursively.
 
 ## Rules
 
@@ -170,8 +182,8 @@ plus the built-in `/skill-doctor`. skillrot is the opposite shape on purpose:
 
 No dependencies means no tokenizer. skillrot estimates at 4 characters per token — close
 enough to rank offenders and size the budget, not exact. Tune it with `--chars-per-token`,
-or pipe `--json` into a real tokenizer for precision. The ranking is what matters. Legacy `commands/` files also enter the real listing and
-skillrot does not count them yet, so its budget numbers are a lower bound. Exact
+or pipe `--json` into a real tokenizer for precision. The ranking is what matters. Bundled skills and skills synced from claude.ai are not
+on disk, so they are not counted. Exact
 accounting also varies between harnesses and versions; skillrot measures the text the spec
 says goes into the listing, budgeted the way the docs say it's budgeted.
 

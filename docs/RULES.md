@@ -166,7 +166,11 @@ to a request by keyword — it is installed, it costs its name in tokens on ever
 and it is effectively unroutable.
 
 skillrot models the same budget Claude Code applies: names are always kept, then
-descriptions fill the remaining budget most-used first (the least-used are dropped). The
+descriptions fill the remaining budget most-used first (the least-used are dropped). Only
+entries the model can see are billed: skills with `disable-model-invocation: true` and
+`skillOverrides` set to `off` or `user-invocable-only` are left out, `name-only` overrides
+cost their name only, and a skill and a command file sharing a name are listed once. Command
+files (`commands/*.md`) count, since they share the listing. The
 budget is 1% of the context window by default; change it with `--budget-fraction` (to
 match `skillListingBudgetFraction`) or `--context-window`.
 

@@ -21,7 +21,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 # --- Spec constants -------------------------------------------------------
 # Sourced from the Claude Code skills reference and the Agent Skills spec.
@@ -189,6 +189,8 @@ class Skill:
     problems: List[str] = field(default_factory=list)
     plugin: Optional[str] = None
     bundle_bytes: int = 0
+    kind: str = "skill"              # skill | command (a commands/*.md file)
+    override: Optional[str] = None   # skillOverrides state from settings, if any
 
     @property
     def description(self) -> str:
@@ -199,13 +201,30 @@ class Skill:
         return self.frontmatter.get("when_to_use", "").strip()
 
     @property
-    def listing_text(self) -> str:
-        """The text the harness puts in the always-on skill listing."""
-        parts = [self.frontmatter.get("name", self.command)]
+    def routing_text(self) -> str:
+        """What the listing shows after the name: description + when_to_use, or,
+        with no description, the first non-empty line of the body (as documented)."""
         combined = " ".join(p for p in (self.description, self.when_to_use) if p)
         if combined:
-            parts.append(combined)
-        return ": ".join(parts)
+            return combined
+        for line in self.body.splitlines():
+            if line.strip():
+                return line.strip().lstrip("#").strip()
+        return ""
+
+    @property
+    def in_listing(self) -> bool:
+        """Whether the skill is advertised to the model at all.
+        `disable-model-invocation: true` and the skillOverrides states "off" and
+        "user-invocable-only" keep it out of context entirely."""
+        if self.override in ("off", "user-invocable-only"):
+            return False
+        return _truthy(self.frontmatter.get("disable-model-invocation", "false")) is not True
+
+    @property
+    def listing_text(self) -> str:
+        """The text the harness puts in the always-on skill listing."""
+        return ": ".join(p for p in (self.command, self.routing_text) if p)
 
     @property
     def body_lines(self) -> int:
@@ -299,17 +318,40 @@ def _directory_name(path: Path) -> str:
     return name
 
 
-def load_skill(path: Path, plugin: Optional[str] = None) -> Skill:
-    """Load one SKILL.md. `plugin` is the owning plugin when a manifest named
-    it; otherwise the plugin (if any) is inferred from the path."""
+# One discovered file: (path, owning plugin or None, "skill" | "command", command name or None)
+Entry = Tuple[Path, Optional[str], str, Optional[str]]
+
+
+def load_skill(
+    path: Path, plugin: Optional[str] = None, kind: str = "skill", command: Optional[str] = None
+) -> Skill:
+    """Load one SKILL.md, or one commands/*.md file when kind == "command".
+
+    `plugin` is the owning plugin when a manifest named it; otherwise it is
+    inferred from the path. `command` is a precomputed name (commands take theirs
+    from the file path, not from frontmatter)."""
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError as exc:  # unreadable file is a finding, not a crash
         return Skill(
-            path=path, root=path.parent, origin="scanned", command=path.parent.name,
-            frontmatter={}, body="", problems=["unreadable: {}".format(exc)],
+            path=path, root=path.parent, origin="scanned", command=command or path.parent.name,
+            frontmatter={}, body="", problems=["unreadable: {}".format(exc)], kind=kind,
         )
     fm, body, problems = parse_frontmatter(text)
+    if kind == "command":
+        # Command files support the same frontmatter except `name`: the file path
+        # is the name. A missing frontmatter block is normal for them.
+        problems = [p for p in problems if p != "no-frontmatter"]
+        origin = "plugin" if plugin else "command"
+        try:
+            size = path.stat().st_size
+        except OSError:
+            size = 0
+        return Skill(
+            path=path, root=path.parent, origin=origin, command=command or path.stem,
+            frontmatter=fm, body=body, problems=problems, plugin=plugin,
+            bundle_bytes=size, kind="command",
+        )
     origin, inferred = ("plugin", plugin) if plugin else _classify(path)
     plugin = inferred
     # Frontmatter `name` wins over the directory name, for plugin and local
@@ -326,7 +368,19 @@ def load_skill(path: Path, plugin: Optional[str] = None) -> Skill:
     )
 
 
-def default_roots() -> List[Path]:
+def _project_dirs(cwd: Path) -> List[Path]:
+    """The start directory and its parents up to the repository root: Claude Code
+    loads project skills from .claude/ in each. Outside a repo, just the start."""
+    dirs: List[Path] = []
+    for folder in [cwd] + list(cwd.parents):
+        dirs.append(folder)
+        if (folder / ".git").exists():
+            return dirs
+    return [cwd]
+
+
+def default_roots(cwd: Optional[Path] = None) -> List[Path]:
+    """Skill install directories on this machine (plus other harnesses' ones)."""
     home = Path.home()
     candidates = [
         home / ".claude" / "skills",
@@ -334,9 +388,20 @@ def default_roots() -> List[Path]:
         home / ".codex" / "skills",
         home / ".cursor" / "skills",
         home / ".config" / "agent-skills",
-        Path.cwd() / ".claude" / "skills",
-    ]
+    ] + [d / ".claude" / "skills" for d in _project_dirs(cwd or Path.cwd())]
     return [c for c in candidates if c.is_dir()]
+
+
+def command_entries(root: Path) -> List[Entry]:
+    """Legacy command files: commands/deploy.md is /deploy and
+    commands/frontend/component.md is /frontend:component."""
+    if not root.is_dir():
+        return []
+    entries: List[Entry] = []
+    for path in sorted(root.rglob("*.md")):
+        rel = path.relative_to(root).with_suffix("")
+        entries.append((path, None, "command", ":".join(rel.parts)))
+    return entries
 
 
 def _read_json(path: Path) -> Optional[dict]:
@@ -347,59 +412,143 @@ def _read_json(path: Path) -> Optional[dict]:
         return None
 
 
-def _plugin_skill_files(
-    plugin_root: Path, entry: Optional[dict] = None
-) -> List[Tuple[Path, str]]:
-    """The SKILL.md files Claude Code loads from one plugin.
+def _as_paths(value) -> List[str]:
+    if isinstance(value, str):
+        return [value]
+    return [p for p in value if isinstance(p, str)] if isinstance(value, list) else []
 
-    Default `skills/<name>/SKILL.md`, plus any manifest `skills` paths (each a
-    folder of skill folders, or one folder holding SKILL.md). A plugin with a
-    root SKILL.md and neither of those loads as a single skill. When there is
-    no plugin.json, the marketplace entry is the manifest.
+
+def _plugin_entries(
+    plugin_root: Path, entry: Optional[dict] = None, name: Optional[str] = None
+) -> List[Entry]:
+    """Everything one plugin adds to the listing: skills and commands.
+
+    Skills: default `skills/<name>/SKILL.md`, plus any manifest `skills` paths
+    (a folder of skill folders, or one folder holding SKILL.md); a plugin with
+    only a root SKILL.md loads as a single skill. Commands: `commands/*.md`,
+    unless the manifest `commands` key replaces that default. With no
+    plugin.json, the marketplace entry is the manifest.
+    ponytail: the object form of `commands` (inline name -> source map) is
+    skipped; add it if a real plugin needs counting that way.
     """
     manifest = _read_json(plugin_root / ".claude-plugin" / "plugin.json") or entry or {}
-    name = str(manifest.get("name") or (entry or {}).get("name") or plugin_root.resolve().name)
-    extra = manifest.get("skills")
-    extra = [extra] if isinstance(extra, str) else [p for p in (extra or []) if isinstance(p, str)]
-    found: List[Path] = []
+    plugin = str(manifest.get("name") or name or (entry or {}).get("name")
+                 or plugin_root.resolve().name)
+    extra = _as_paths(manifest.get("skills"))
+    skills: List[Path] = []
     for folder in [plugin_root / "skills"] + [plugin_root / p for p in extra]:
         if (folder / "SKILL.md").is_file():
-            found.append(folder / "SKILL.md")
+            skills.append(folder / "SKILL.md")
         elif folder.is_dir():
-            found.extend(sorted(folder.glob("*/SKILL.md")))
-    if not found and not extra and (plugin_root / "SKILL.md").is_file():
-        found.append(plugin_root / "SKILL.md")
-    return [(path, name) for path in found]
+            skills.extend(sorted(folder.glob("*/SKILL.md")))
+    if not skills and not extra and (plugin_root / "SKILL.md").is_file():
+        skills.append(plugin_root / "SKILL.md")
+    found: List[Entry] = [(p, plugin, "skill", None) for p in skills]
+
+    command_paths = (_as_paths(manifest["commands"]) if "commands" in manifest
+                     else ["commands"])
+    for rel in command_paths:
+        target = plugin_root / rel
+        if target.is_file():
+            files = [target]
+        elif target.is_dir():
+            files = sorted(target.glob("*.md"))
+        else:
+            files = []
+        found.extend((f, plugin, "command", "{}:{}".format(plugin, f.stem))
+                     for f in files if f.suffix == ".md")
+    return found
 
 
-def manifest_skill_files(root: Path) -> Optional[List[Tuple[Path, str]]]:
-    """Skills a marketplace or plugin checkout would actually install.
+def manifest_skill_files(root: Path) -> Optional[List[Entry]]:
+    """Skills and commands a marketplace or plugin checkout would install.
 
     Returns None when `root` is neither, so the caller falls back to a plain
     recursive scan. Without this, a repo's translated docs and mirrors for
     other harnesses (docs/ja-JP/skills, .gemini/skills, ...) were counted as
     installed skills and inflated the bill several times over.
     ponytail: only local (string) plugin sources resolve; github/url sources
-    aren't in this checkout, so they're skipped rather than fetched.
+    are not in this checkout, so they are skipped rather than fetched.
     """
-    found: List[Tuple[Path, str]] = []
+    found: List[Entry] = []
     # The checkout itself can be a plugin even when its marketplace entry points
     # at a remote copy of the same repo (source: github), so check both.
     if (root / ".claude-plugin" / "plugin.json").is_file():
-        found.extend(_plugin_skill_files(root))
+        found.extend(_plugin_entries(root))
     market = _read_json(root / ".claude-plugin" / "marketplace.json") or {}
     for entry in market.get("plugins") or []:
         source = entry.get("source") if isinstance(entry, dict) else None
         if isinstance(source, str):
-            found.extend(_plugin_skill_files(root / source, entry))
+            found.extend(_plugin_entries(root / source, entry))
     # Nothing installable resolved locally: fall back to the recursive scan.
     return found or None
 
 
+def load_settings(home: Path, cwd: Path) -> dict:
+    """Merge Claude Code settings: user, then project, then local (later wins;
+    enabledPlugins, skillOverrides and env merge key by key)."""
+    merged: dict = {}
+    files = [home / ".claude" / "settings.json"]
+    for folder in reversed(_project_dirs(cwd)):
+        files += [folder / ".claude" / "settings.json", folder / ".claude" / "settings.local.json"]
+    for path in files:
+        data = _read_json(path) or {}
+        for key, value in data.items():
+            if isinstance(value, dict) and isinstance(merged.get(key), dict):
+                merged[key] = dict(merged[key], **value)
+            else:
+                merged[key] = value
+    return merged
+
+
+def installed_plugin_entries(home: Path, settings: dict) -> Optional[List[Entry]]:
+    """Skills and commands of the plugins enabled in settings.
+
+    Resolves each `name@marketplace` through installed_plugins.json (the install
+    cache) and, for directory marketplaces loaded in place, through
+    known_marketplaces.json. Returns None when no plugins are configured, so the
+    caller can fall back to scanning ~/.claude/plugins. Scanning that folder
+    blindly counts every plugin in every cloned marketplace, enabled or not.
+    """
+    enabled = settings.get("enabledPlugins")
+    if not isinstance(enabled, dict):
+        return None
+    plugins_dir = home / ".claude" / "plugins"
+    installed = (_read_json(plugins_dir / "installed_plugins.json") or {}).get("plugins") or {}
+    markets = _read_json(plugins_dir / "known_marketplaces.json") or {}
+    found: List[Entry] = []
+    for key, on in sorted(enabled.items()):
+        if on is not True:
+            continue
+        name, _, market = key.partition("@")
+        root: Optional[Path] = None
+        entry: Optional[dict] = None
+        for install in installed.get(key) or []:
+            path = Path(str((install or {}).get("installPath", "")))
+            if str(path) not in ("", ".") and path.is_dir():
+                root = path
+                break
+        info = markets.get(market) if isinstance(markets.get(market), dict) else {}
+        location = info.get("installLocation") or (info.get("source") or {}).get("path")
+        if location:
+            catalog = _read_json(Path(location) / ".claude-plugin" / "marketplace.json") or {}
+            entry = next((p for p in catalog.get("plugins") or []
+                          if isinstance(p, dict) and p.get("name") == name), None)
+            if root is None and entry and isinstance(entry.get("source"), str):
+                candidate = Path(location) / entry["source"]
+                root = candidate if candidate.is_dir() else None
+        if root is not None:
+            found.extend(_plugin_entries(root, entry, name))
+    return found
+
+
 def discover(
-    roots: Sequence[Path], shallow_roots: Sequence[Path] = (), scan_all: bool = False
+    roots: Sequence[Path],
+    shallow_roots: Sequence[Path] = (),
+    scan_all: bool = False,
+    extra: Sequence[Entry] = (),
 ) -> List[Skill]:
-    """Find and load every unique SKILL.md under the roots.
+    """Find and load every unique skill under the roots, plus `extra` entries.
 
     A root in `shallow_roots` is scanned one level deep (`*/SKILL.md`), the way
     Claude Code loads an install directory: a whole repo dropped into
@@ -409,34 +558,36 @@ def discover(
     Any other root is scanned recursively; `scan_all` forces that everywhere.
     """
     shallow = {Path(r) for r in shallow_roots}
-    seen: Set[Path] = set()
-    paths: List[Tuple[Path, Optional[str]]] = []
+    entries: List[Entry] = []
     for root in roots:
         manifest = None if (scan_all or root.is_file()) else manifest_skill_files(root)
         if root.is_file():
-            found: Iterable[Tuple[Path, Optional[str]]] = [(root, None)]
+            found: Iterable[Entry] = [(root, None, "skill", None)]
         elif root in shallow:
-            found = [(p, None) for p in sorted(root.glob("*/SKILL.md"))]
+            found = [(p, None, "skill", None) for p in sorted(root.glob("*/SKILL.md"))]
         elif manifest is not None:
             found = manifest
         else:
-            found = [(p, None) for p in sorted(root.rglob("SKILL.md"))]
-        for path, plugin in found:
-            try:
-                resolved = path.resolve()
-            except OSError:
-                resolved = path
-            if resolved in seen:
-                continue
-            seen.add(resolved)
-            paths.append((path, plugin))
-    if not paths:
+            found = [(p, None, "skill", None) for p in sorted(root.rglob("SKILL.md"))]
+        entries.extend(found)
+    seen: Set[Path] = set()
+    unique: List[Entry] = []
+    for item in list(entries) + list(extra):
+        try:
+            resolved = item[0].resolve()
+        except OSError:
+            resolved = item[0]
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        unique.append(item)
+    if not unique:
         return []
     # Reads are I/O bound (often on an external disk); load in parallel but
     # keep discovery order so output is deterministic.
-    workers = min(32, (os.cpu_count() or 4) * 4, len(paths))
+    workers = min(32, (os.cpu_count() or 4) * 4, len(unique))
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        return list(pool.map(lambda item: load_skill(*item), paths))
+        return list(pool.map(lambda item: load_skill(*item), unique))
 
 
 # --- Usage evidence -------------------------------------------------------
@@ -446,8 +597,13 @@ _SKILL_CALL_RE = re.compile(
 )
 
 
+# A skill or command the user typed as /name is logged in their own message.
+_TYPED_COMMAND_RE = re.compile(r"<command-name>/?([^<\s]+)</command-name>")
+
+
 def usage_counts(transcript_root: Optional[Path] = None) -> Dict[str, int]:
-    """Count real Skill invocations in local Claude Code transcripts."""
+    """Count real invocations in local Claude Code transcripts: Skill tool calls
+    made by the model, plus /commands the user typed."""
     root = transcript_root or (Path.home() / ".claude" / "projects")
     counts: Dict[str, int] = {}
     if not root.is_dir():
@@ -456,9 +612,12 @@ def usage_counts(transcript_root: Optional[Path] = None) -> Dict[str, int]:
         try:
             with jsonl.open("r", encoding="utf-8", errors="replace") as handle:
                 for line in handle:
-                    if '"Skill"' not in line:
-                        continue
-                    for name in _SKILL_CALL_RE.findall(line):
+                    names: List[str] = []
+                    if '"Skill"' in line:
+                        names += _SKILL_CALL_RE.findall(line)
+                    if "<command-name>" in line and '"type":"user"' in line:
+                        names += _TYPED_COMMAND_RE.findall(line)
+                    for name in names:
                         counts[name] = counts.get(name, 0) + 1
         except OSError:
             continue
@@ -628,12 +787,16 @@ def analyze(
 
         description = skill.description
         combined = " ".join(p for p in (description, skill.when_to_use) if p)
+        # Command files are the older format: no description and no frontmatter
+        # are normal for them, and the Agent Skills spec does not cover them, so
+        # the skill-authoring rules below skip them.
+        authoring = skill.kind == "skill"
 
-        if fm and not description:
+        if authoring and fm and not description:
             add("SR002", "error", skill,
                 "No `description`. Routing falls back to the first non-empty line of the body.",
                 "Add a description that says what the skill does and when to use it.")
-        elif description and len(description) < 15:
+        elif authoring and description and len(description) < 15:
             add("SR025", "warn", skill,
                 "Description is {} characters. Too thin to route on.".format(len(description)),
                 "Say what it does and name the trigger, in one sentence.")
@@ -659,7 +822,7 @@ def analyze(
                     "`{}: {}` is not a boolean.".format(bool_field, fm[bool_field]),
                     "Use true/false (yes/no/on/off/1/0 also work).")
 
-        if description and not any(cue in combined.lower() for cue in TRIGGER_CUES):
+        if authoring and description and not any(cue in combined.lower() for cue in TRIGGER_CUES):
             add("SR022", "warn", skill,
                 "Description never says *when* to use the skill, only what it is.",
                 "Append a trigger clause: 'Use when the user asks to ...'.")
@@ -670,7 +833,7 @@ def analyze(
                 "session once it fires.".format(skill.body_lines),
                 "Split the reference material into files the skill reads on demand.")
 
-        if portable:
+        if portable and authoring:
             for key in sorted(fm):
                 if key not in PORTABLE_FIELDS:
                     add("SR010", "error", skill,
@@ -683,7 +846,7 @@ def analyze(
                     "`compatibility` is {} chars; the spec allows {}.".format(
                         len(compat), COMPATIBILITY_CAP),
                     "Trim it.")
-        else:
+        elif not portable:
             for key in sorted(fm):
                 if key not in KNOWN_FIELDS:
                     add("SR012", "info", skill,
@@ -704,11 +867,7 @@ def analyze(
                 "Rename or remove the duplicates: {}".format(others),
             ))
 
-    routable = [
-        s for s in skills
-        if s.description
-        and _truthy(s.frontmatter.get("disable-model-invocation", "false")) is not True
-    ]
+    routable = [s for s in skills if s.description and s.in_listing]
     for cluster in cluster_by_description(routable, similarity):
         head = cluster[0]
         names = ", ".join("/" + s.command for s in cluster[:4])
@@ -749,13 +908,15 @@ def analyze(
 
 @dataclass
 class Budget:
-    skills: int
-    name_tokens: int          # every skill name; always in the listing
+    skills: int               # every discovered entry, skills and commands
+    name_tokens: int          # every listed name; always in the listing
     desc_tokens: int          # descriptions the full listing wants (per-entry capped)
     body_tokens: int
     bundle_bytes: int
     context_window: int
     listing_budget: int       # tokens the harness allows the listing (1% of window)
+    commands: int = 0         # how many of `skills` are commands/*.md files
+    hidden: int = 0           # kept out of context (disable-model-invocation, overrides)
 
     @property
     def requested_tokens(self) -> int:
@@ -782,36 +943,51 @@ class Budget:
         return 100.0 * self.requested_tokens / self.listing_budget if self.listing_budget else 0.0
 
 
-def _name_text(skill: Skill) -> str:
-    return skill.frontmatter.get("name") or skill.command
-
-
 def _name_tokens(skill: Skill, chars_per_token: float) -> int:
-    return estimate_tokens(_name_text(skill) + ": ", chars_per_token)
+    """The listing names each entry by the command you'd type."""
+    return estimate_tokens(skill.command + ": ", chars_per_token)
 
 
 def _desc_tokens(skill: Skill, chars_per_token: float) -> int:
-    combined = " ".join(p for p in (skill.description, skill.when_to_use) if p)
-    return estimate_tokens(combined[:LISTING_CHAR_CAP], chars_per_token)
+    if skill.override == "name-only":
+        return 0
+    return estimate_tokens(skill.routing_text[:LISTING_CHAR_CAP], chars_per_token)
 
 
 def listing_tokens(skill: Skill, chars_per_token: float) -> int:
     return estimate_tokens(skill.listing_text[:LISTING_CHAR_CAP], chars_per_token)
 
 
+def _listed(skills: Sequence[Skill]) -> List[Skill]:
+    """The entries the model actually sees: advertised to the model, one per
+    command name. When a skill and a command file share a name, the skill wins,
+    so the duplicate never reaches the listing (SR020 still reports it)."""
+    chosen: Dict[str, Skill] = {}
+    for skill in skills:
+        if not skill.in_listing:
+            continue
+        key = skill.command.lower()
+        if key not in chosen or (chosen[key].kind == "command" and skill.kind == "skill"):
+            chosen[key] = skill
+    return list(chosen.values())
+
+
 def name_only_skills(
     skills: Sequence[Skill], usage: Dict[str, int], listing_budget: int, chars_per_token: float
 ) -> List[Skill]:
-    """Skills whose description won't fit the listing budget.
+    """Listed skills whose description won't fit the listing budget.
 
-    Names are always listed; the remaining budget fills with descriptions
-    most-used first (Claude Code drops the least-used ones), tie-broken by the
-    cheaper description so more of them fit.
+    Names of everything in the listing are always kept; the remaining budget
+    fills with descriptions most-used first (Claude Code drops the least-used
+    ones), tie-broken by the cheaper description so more of them fit. Skills
+    hidden from the model, or set to name-only on purpose, are not reported.
     """
-    remaining = listing_budget - sum(_name_tokens(s, chars_per_token) for s in skills)
+    listed = _listed(skills)
+    remaining = listing_budget - sum(_name_tokens(s, chars_per_token) for s in listed)
     dropped: List[Skill] = []
+    candidates = [s for s in listed if s.override != "name-only"]
     ordered = sorted(
-        skills,
+        candidates,
         key=lambda s: (-resolve_usage(s, usage), _desc_tokens(s, chars_per_token)),
     )
     for skill in ordered:
@@ -828,15 +1004,23 @@ def budget(
     chars_per_token: float,
     context_window: int,
     budget_fraction: float = DEFAULT_BUDGET_FRACTION,
+    listing_budget_tokens: Optional[int] = None,
 ) -> Budget:
+    """Size the listing. Only skills advertised to the model count toward it;
+    `listing_budget_tokens` pins the budget (SLASH_COMMAND_TOOL_CHAR_BUDGET)."""
+    listed = _listed(skills)
+    if listing_budget_tokens is None:
+        listing_budget_tokens = int(round(context_window * budget_fraction))
     return Budget(
         skills=len(skills),
-        name_tokens=sum(_name_tokens(s, chars_per_token) for s in skills),
-        desc_tokens=sum(_desc_tokens(s, chars_per_token) for s in skills),
+        name_tokens=sum(_name_tokens(s, chars_per_token) for s in listed),
+        desc_tokens=sum(_desc_tokens(s, chars_per_token) for s in listed),
         body_tokens=sum(estimate_tokens(s.body, chars_per_token) for s in skills),
         bundle_bytes=sum(s.bundle_bytes for s in skills),
         context_window=context_window,
-        listing_budget=int(round(context_window * budget_fraction)),
+        listing_budget=listing_budget_tokens,
+        commands=sum(1 for s in skills if s.kind == "command"),
+        hidden=sum(1 for s in skills if not s.in_listing),
     )
 
 
@@ -890,7 +1074,13 @@ def render(
     out.append(bold("skillrot {}".format(__version__)))
     out.append("")
     out.append(bold("  Context bill"))
-    out.append("    {} skills discovered".format(totals.skills))
+    found = "{} skills".format(totals.skills - totals.commands)
+    if totals.commands:
+        found += " + {} commands".format(totals.commands)
+    out.append("    {} discovered".format(found))
+    if totals.hidden:
+        out.append("    {} kept out of context (disable-model-invocation / skillOverrides)".format(
+            totals.hidden))
     out.append("    ~{:,} tokens in the always-on listing  ({:.1f}% of a {:,}-token window)".format(
         totals.always_on_tokens, totals.context_percent, totals.context_window))
     out.append("    ~{:,} tok listing budget ({:.0f}% requested)".format(
@@ -969,6 +1159,8 @@ def to_json(
             "listing_budget": totals.listing_budget,
             "budget_percent": round(totals.budget_percent, 2),
             "overflows": totals.overflows,
+            "commands": totals.commands,
+            "hidden": totals.hidden,
             "body_tokens": totals.body_tokens,
             "bundle_bytes": totals.bundle_bytes,
             "context_window": totals.context_window,
@@ -977,6 +1169,9 @@ def to_json(
         "skills": [
             {
                 "command": s.command,
+                "kind": s.kind,
+                "in_listing": s.in_listing,
+                "override": s.override,
                 "path": str(s.path),
                 "origin": s.origin,
                 "plugin": s.plugin,
@@ -1113,8 +1308,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--chars-per-token", type=float, default=DEFAULT_CHARS_PER_TOKEN,
         help="Token estimate divisor.")
     parser.add_argument(
-        "--budget-fraction", type=float, default=DEFAULT_BUDGET_FRACTION,
-        help="Listing budget as a fraction of the context window (Claude Code default 0.01).")
+        "--budget-fraction", type=float, default=None,
+        help="Listing budget as a fraction of the context window. Default: your "
+             "skillListingBudgetFraction setting, else Claude Code's 0.01.")
     parser.add_argument(
         "--svg", type=Path, default=None,
         help="Write a budget chart (SVG) to this path.")
@@ -1136,31 +1332,55 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = build_parser().parse_args(argv)
 
     # When the user passes paths, audit everything under them. With no paths we
-    # audit the install locations, scanning each skills directory one level deep
-    # the way Claude Code loads it (the plugins dir stays recursive).
+    # audit what this machine's Claude Code actually loads: personal and project
+    # skills one level deep, command files, and the plugins enabled in settings.
+    home, cwd = Path.home(), Path.cwd()
+    settings: dict = {}
+    extra: List[Entry] = []
     if args.paths:
         roots, shallow = list(args.paths), []
     else:
-        roots = default_roots()
+        settings = load_settings(home, cwd)
+        roots = default_roots(cwd)
+        plugins = installed_plugin_entries(home, settings)
+        if plugins is not None:
+            roots = [r for r in roots if r.name != "plugins"]
+            extra += plugins
         shallow = [r for r in roots if r.name != "plugins"]
-    if not roots:
+        for folder in [home] + _project_dirs(cwd):
+            extra += command_entries(folder / ".claude" / "commands")
+    if not roots and not extra:
         sys.stderr.write("skillrot: no skills found. Pass a path to scan.\n")
         return 2
 
     for path in [r for r in roots if not r.exists()]:
         sys.stderr.write("skillrot: no such path: {}\n".format(path))
     roots = [r for r in roots if r.exists()]
-    if not roots:
+    if not roots and not extra:
         return 2
 
-    skills = discover(roots, shallow_roots=shallow, scan_all=args.all)
+    skills = discover(roots, shallow_roots=shallow, scan_all=args.all, extra=extra)
     if not skills:
         sys.stderr.write("skillrot: found no SKILL.md under {}\n".format(
             ", ".join(str(r) for r in roots)))
         return 2
 
+    overrides = {str(k).lower(): v for k, v in (settings.get("skillOverrides") or {}).items()}
+    for skill in skills:
+        skill.override = overrides.get(skill.command.lower())
+
+    fraction = args.budget_fraction
+    if fraction is None:
+        fraction = settings.get("skillListingBudgetFraction")
+        fraction = fraction if isinstance(fraction, (int, float)) else DEFAULT_BUDGET_FRACTION
+    char_budget = (os.environ.get("SLASH_COMMAND_TOOL_CHAR_BUDGET")
+                   or (settings.get("env") or {}).get("SLASH_COMMAND_TOOL_CHAR_BUDGET"))
+    fixed = None
+    if args.budget_fraction is None and char_budget and str(char_budget).isdigit():
+        fixed = int(int(char_budget) / args.chars_per_token)
+
     usage = None if args.no_usage else usage_counts(args.transcripts)
-    totals = budget(skills, args.chars_per_token, args.context_window, args.budget_fraction)
+    totals = budget(skills, args.chars_per_token, args.context_window, fraction, fixed)
     findings = analyze(
         skills, usage=usage, portable=args.portable,
         body_line_budget=args.body_lines, similarity=args.similarity,
