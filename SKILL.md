@@ -22,7 +22,7 @@ python ${CLAUDE_SKILL_DIR}/skillrot.py ./skills --json
 ```
 
 Useful flags: `--portable` (check a skill will survive a claude.ai upload), `--no-usage`
-(skip the transcript scan), `--fail-on error` (CI), `--full` (every finding).
+(skip the transcript scan), `--fail-on error` and `--fail-over-budget` (CI), `--full` (every finding).
 
 ## Reading the output
 

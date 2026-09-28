@@ -115,6 +115,7 @@ skillrot --svg budget.svg       # write a shareable budget chart
 skillrot --budget-fraction 0.02 # model a raised skillListingBudgetFraction
 skillrot --json                 # machine-readable, for scripts and CI
 skillrot --fail-on error        # non-zero exit when something is broken
+skillrot --fail-over-budget     # non-zero exit when descriptions would be dropped
 skillrot --full                 # print every finding, not the first 20 per rule
 skillrot --no-usage             # skip the transcript scan
 skillrot ./repo --all           # count every SKILL.md, ignoring plugin manifests
@@ -176,7 +177,7 @@ plus the built-in `/skill-doctor`. skillrot is the opposite shape on purpose:
 - **Deterministic.** Same library, same numbers, every run. No model in the loop.
 - **Any directory, offline.** Audit a marketplace, a PR, or a folder you haven't installed —
   `/skill-doctor` only sees the skills already loaded into a session.
-- **CI-gateable.** `--fail-on error` and stable rule ids turn "descriptions silently dropped"
+- **CI-gateable.** `--fail-over-budget`, `--fail-on error` and stable rule ids turn "descriptions silently dropped"
   into a build that fails on the PR, not a surprise at session start.
 - **Portability check.** `--portable` catches the non-spec frontmatter that makes a claude.ai
   upload fail outright — before you try to share the skill.
@@ -193,11 +194,11 @@ says goes into the listing, budgeted the way the docs say it's budgeted.
 ## Use it in CI
 
 ```yaml
-- run: python skillrot.py .claude/skills --portable --no-usage --fail-on error
+- run: python skillrot.py .claude/skills --portable --no-usage --fail-on error --fail-over-budget
 ```
 
-Catches the frontmatter mistakes that silently ship a dead skill, and the non-spec fields
-that make a `claude.ai` upload fail outright. This repo audits its own skill on every push
+Fails the build when a skill library overflows its listing budget, when frontmatter would
+silently ship a dead skill, or when non-spec fields would make a `claude.ai` upload fail. This repo audits its own skill on every push
 across Linux, macOS and Windows, and re-audits five public skill libraries weekly — see
 [.github/workflows](.github/workflows).
 

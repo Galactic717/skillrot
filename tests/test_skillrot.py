@@ -333,6 +333,15 @@ class CliTests(unittest.TestCase):
         self.assertEqual(
             run_cli([str(self.root), "--no-usage", "--json", "--fail-on", "error"])[0], 1)
 
+    def test_fail_over_budget_exits_nonzero_only_when_over(self):
+        self.assertEqual(run_cli([str(self.root), "--no-usage", "--json", "--fail-over-budget"])[0], 0)
+        for i in range(40):
+            write_skill(self.root, "s{}".format(i), "---\nname: s{}\ndescription: Use when the user "
+                        "asks about topic {} in great detail and at length.\n---\nb\n".format(i, i))
+        code, _ = run_cli([str(self.root), "--no-usage", "--json", "--fail-over-budget",
+                           "--context-window", "20000"])
+        self.assertEqual(code, 1)
+
     def test_missing_path_exits_two(self):
         self.assertEqual(run_cli([str(self.root / "nope"), "--no-usage"])[0], 2)
 

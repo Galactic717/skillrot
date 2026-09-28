@@ -82,7 +82,7 @@ run on affaan-m/ECC → the weekly five-library results → install line.
 > Not hypothetical. LifeOS shipped 46 skills at ~3× the budget and Claude Code dropped most
 > of them at session start (issue #1205). One line in CI catches that on the PR:
 >
-> `python skillrot.py .claude/skills --fail-on error`
+> `python skillrot.py . --fail-over-budget`
 
 **4 — what else it checks:**
 

@@ -21,7 +21,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 # --- Spec constants -------------------------------------------------------
 # Sourced from the Claude Code skills reference and the Agent Skills spec.
@@ -1321,6 +1321,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--fail-on", choices=("never", "error", "warn"), default="never",
         help="Exit non-zero at this severity. Use in CI.")
     parser.add_argument(
+        "--fail-over-budget", action="store_true",
+        help="Exit non-zero when the listing needs more than its budget, i.e. "
+             "descriptions would be dropped. Use in CI.")
+    parser.add_argument(
         "--full", action="store_true",
         help="Print every finding instead of the first 20 per rule.")
     parser.add_argument("--no-color", action="store_true")
@@ -1406,6 +1410,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.fail_on == "error" and any(f.severity == "error" for f in findings):
         return 1
     if args.fail_on == "warn" and any(f.severity in ("error", "warn") for f in findings):
+        return 1
+    if args.fail_over_budget and totals.overflows:
         return 1
     return 0
 
