@@ -562,6 +562,29 @@ class ManifestDiscoveryTests(unittest.TestCase):
             self.make_marketplace(Path(tmp))
             self.assertEqual(len(skillrot.discover([Path(tmp)], scan_all=True)), 4)
 
+    def test_root_plugin_counts_when_marketplace_source_is_remote(self):
+        # addyosmani/agent-skills: marketplace points at github, root has plugin.json.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".claude-plugin").mkdir()
+            (root / ".claude-plugin" / "marketplace.json").write_text(json.dumps(
+                {"plugins": [{"name": "a", "source": {"source": "github", "repo": "x/a"}}]}),
+                encoding="utf-8")
+            (root / ".claude-plugin" / "plugin.json").write_text(
+                json.dumps({"name": "a", "skills": "./skills"}), encoding="utf-8")
+            write_skill(root / "skills", "one", GOOD.replace("name: deploy\n", ""))
+            write_skill(root / ".gemini" / "skills", "one", GOOD)
+            self.assertEqual([s.command for s in skillrot.discover([root])], ["a:one"])
+
+    def test_remote_only_marketplace_falls_back_to_recursive_scan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".claude-plugin").mkdir()
+            (root / ".claude-plugin" / "marketplace.json").write_text(json.dumps(
+                {"plugins": [{"name": "a", "source": {"source": "github"}}]}), encoding="utf-8")
+            write_skill(root / "catalog", "one", GOOD)
+            self.assertEqual(len(skillrot.discover([root])), 1)
+
     def test_plugin_root_skill_md_loads_as_single_skill(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

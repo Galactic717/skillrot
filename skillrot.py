@@ -382,17 +382,18 @@ def manifest_skill_files(root: Path) -> Optional[List[Tuple[Path, str]]]:
     ponytail: only local (string) plugin sources resolve; github/url sources
     aren't in this checkout, so they're skipped rather than fetched.
     """
-    market = _read_json(root / ".claude-plugin" / "marketplace.json")
-    if market is not None:
-        found: List[Tuple[Path, str]] = []
-        for entry in market.get("plugins") or []:
-            source = entry.get("source") if isinstance(entry, dict) else None
-            if isinstance(source, str):
-                found.extend(_plugin_skill_files(root / source, entry))
-        return found
+    found: List[Tuple[Path, str]] = []
+    # The checkout itself can be a plugin even when its marketplace entry points
+    # at a remote copy of the same repo (source: github), so check both.
     if (root / ".claude-plugin" / "plugin.json").is_file():
-        return _plugin_skill_files(root)
-    return None
+        found.extend(_plugin_skill_files(root))
+    market = _read_json(root / ".claude-plugin" / "marketplace.json") or {}
+    for entry in market.get("plugins") or []:
+        source = entry.get("source") if isinstance(entry, dict) else None
+        if isinstance(source, str):
+            found.extend(_plugin_skill_files(root / source, entry))
+    # Nothing installable resolved locally: fall back to the recursive scan.
+    return found or None
 
 
 def discover(
