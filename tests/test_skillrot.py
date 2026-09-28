@@ -424,5 +424,110 @@ class RenderLimitTests(unittest.TestCase):
         self.assertEqual(full.count("SR022"), 25)
 
 
+class FoldedScalarTests(unittest.TestCase):
+    def test_plain_scalar_folds_indented_continuations(self):
+        text = ("---\nname: x\ndescription: First line\n"
+                "  and its folded continuation about when to use it.\n---\nbody\n")
+        fm, _, problems = skillrot.parse_frontmatter(text)
+        self.assertEqual(problems, [])
+        self.assertEqual(
+            fm["description"],
+            "First line and its folded continuation about when to use it.")
+
+    def test_folded_description_is_seen_by_the_trigger_rule(self):
+        # The trigger cue lives on the continuation line; before folding it was
+        # truncated away and SR022 fired falsely.
+        with tempfile.TemporaryDirectory() as tmp:
+            write_skill(Path(tmp), "x",
+                        "---\nname: x\ndescription: A table formatter\n"
+                        "  that you use when the user asks to format a table.\n---\nb\n")
+            rules = {f.rule for f in skillrot.analyze(skillrot.discover([Path(tmp)]))}
+            self.assertNotIn("SR022", rules)
+
+
+class TriggerSourceTests(unittest.TestCase):
+    def test_sr022_silent_when_trigger_is_in_when_to_use(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_skill(Path(tmp), "x",
+                        "---\nname: x\ndescription: A helper for formatting tables.\n"
+                        "when_to_use: Use when the user asks to format a table.\n---\nb\n")
+            rules = {f.rule for f in skillrot.analyze(skillrot.discover([Path(tmp)]))}
+            self.assertNotIn("SR022", rules)
+
+
+class ListingBudgetTests(unittest.TestCase):
+    def make(self, command, description):
+        return skillrot.Skill(
+            path=Path(command) / "SKILL.md", root=Path(command), origin="scanned",
+            command=command, frontmatter={"name": command, "description": description}, body="")
+
+    def test_names_are_always_counted_even_over_budget(self):
+        skills = [self.make("s{}".format(i), "Use when the user asks about topic {}.".format(i))
+                  for i in range(50)]
+        # A budget too small for any description: always-on is at least the names.
+        totals = skillrot.budget(skills, 4.0, 10_000, budget_fraction=0.001)  # 10-tok budget
+        self.assertTrue(totals.overflows)
+        self.assertGreaterEqual(totals.always_on_tokens, totals.name_tokens)
+        self.assertEqual(totals.name_tokens, sum(skillrot._name_tokens(s, 4.0) for s in skills))
+
+    def test_name_only_skills_reported_as_sr030(self):
+        skills = [self.make("s{}".format(i), "Use when the user asks about topic {}.".format(i))
+                  for i in range(30)]
+        findings = skillrot.analyze(skills, usage={}, listing_budget=20, chars_per_token=4.0)
+        sr030 = [f for f in findings if f.rule == "SR030"]
+        self.assertTrue(sr030)  # a 20-token budget can't hold 30 descriptions
+
+    def test_no_sr030_when_everything_fits(self):
+        skills = [self.make("a", "Use when the user asks about alpha.")]
+        findings = skillrot.analyze(skills, usage={}, listing_budget=2000, chars_per_token=4.0)
+        self.assertNotIn("SR030", {f.rule for f in findings})
+
+    def test_most_used_descriptions_survive_the_budget(self):
+        skills = [self.make("keep", "Use when the user asks about the kept topic here."),
+                  self.make("drop", "Use when the user asks about the dropped topic here.")]
+        budget_tok = (skillrot._name_tokens(skills[0], 4.0) * 2
+                      + skillrot._desc_tokens(skills[0], 4.0))  # room for one description
+        dropped = skillrot.name_only_skills(skills, {"keep": 9}, budget_tok, 4.0)
+        self.assertEqual([s.command for s in dropped], ["drop"])
+
+
+class BundleBytesTests(unittest.TestCase):
+    def test_nested_skill_is_not_counted_in_parent_bundle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "parent"
+            (root).mkdir()
+            (root / "SKILL.md").write_text(GOOD, encoding="utf-8")
+            (root / "big.txt").write_text("x" * 1000, encoding="utf-8")
+            nested = root / "child"
+            nested.mkdir()
+            (nested / "SKILL.md").write_text(GOOD, encoding="utf-8")
+            (nested / "huge.txt").write_text("y" * 100000, encoding="utf-8")
+            total = skillrot._bundle_bytes(root)
+            self.assertLess(total, 5000)  # the 100k nested file is excluded
+
+
+class ShallowDiscoveryTests(unittest.TestCase):
+    def test_shallow_root_scans_one_level_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_skill(root, "top", GOOD)                       # root/top/SKILL.md
+            write_skill(root / "repo" / "deep", "buried", GOOD)  # root/repo/deep/SKILL.md
+            shallow = skillrot.discover([root], shallow_roots=[root])
+            self.assertEqual([s.command for s in shallow], ["top"])
+            deep = skillrot.discover([root])
+            self.assertEqual(sorted(s.command for s in deep), ["buried", "top"])
+
+
+class SvgTests(unittest.TestCase):
+    def test_svg_is_well_formed_xml(self):
+        import xml.dom.minidom as minidom
+        with tempfile.TemporaryDirectory() as tmp:
+            write_skill(Path(tmp), "deploy", GOOD)
+            skills = skillrot.discover([Path(tmp)])
+            svg = skillrot.to_svg(skills, skillrot.budget(skills, 4.0, 200_000), {}, 4.0)
+            doc = minidom.parseString(svg)      # raises on malformed XML
+            self.assertEqual(doc.documentElement.tagName, "svg")
+
+
 if __name__ == "__main__":
     unittest.main()

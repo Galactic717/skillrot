@@ -150,3 +150,29 @@ listing cost — a cheap skill that never fires is fine, an expensive one is ren
 
 Transcripts are read locally and never leave the machine. Turn the scan off with
 `--no-usage`.
+
+### SR030 — listed name-only (description dropped from the budget)
+
+> Claude Code loads a listing of skill names and descriptions into context... The
+> listing always contains every skill name, but if you have many skills, Claude Code
+> drops some descriptions to fit the listing's character budget... The budget scales at
+> 1% of the model's context window. When the listing overflows, Claude Code drops
+> descriptions starting with the skills you invoke least. — CC
+
+This is the failure that bites big libraries: not that a single skill is malformed, but
+that the *collection* overflows the listing budget, so Claude Code lists some skills by
+name only. A name-only skill has no description in context, so the router cannot match it
+to a request by keyword — it is installed, it costs its name in tokens on every message,
+and it is effectively unroutable.
+
+skillrot models the same budget Claude Code applies: names are always kept, then
+descriptions fill the remaining budget most-used first (the least-used are dropped). The
+budget is 1% of the context window by default; change it with `--budget-fraction` (to
+match `skillListingBudgetFraction`) or `--context-window`.
+
+This is the total-listing counterpart to SR003: SR003 catches one skill whose own
+description runs past the 1,536-character *per-entry* cap; SR030 catches skills whose
+descriptions do not fit the *whole-listing* budget once every other skill is counted. A
+real-world instance: a widely-used library shipped 46 skills whose descriptions summed to
+roughly three times the budget, and Claude Code silently dropped most of them at session
+start.

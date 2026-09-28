@@ -1,0 +1,15 @@
+
+skillrot 0.2.0
+
+  Context bill
+    1 skills discovered
+    ~70 tokens in the always-on listing  (0.0% of a 200,000-token window)
+    ~2,000 tok listing budget (4% requested)
+    ~357 tokens of skill bodies waiting to load
+    83.3KB on disk
+
+  Heaviest listings  (paid on every message)
+       71 tok  /skillrot
+
+  0 error(s), 0 warning(s)
+

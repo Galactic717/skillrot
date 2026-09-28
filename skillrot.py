@@ -15,11 +15,13 @@ import json
 import os
 import re
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # --- Spec constants -------------------------------------------------------
 # Sourced from the Claude Code skills reference and the Agent Skills spec.
@@ -74,6 +76,10 @@ DEFAULT_CONTEXT_WINDOW = 200_000
 DEFAULT_BODY_LINE_BUDGET = 500
 DEFAULT_SIMILARITY = 0.80
 DEFAULT_CHARS_PER_TOKEN = 4.0
+# Claude Code sizes the always-on skill listing at 1% of the context window and
+# drops the least-used descriptions when it overflows (skillListingBudgetFraction,
+# SLASH_COMMAND_TOOL_CHAR_BUDGET). Skill names are always kept.
+DEFAULT_BUDGET_FRACTION = 0.01
 
 STOPWORDS = {
     "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "in",
@@ -156,8 +162,15 @@ def parse_frontmatter(text: str) -> Tuple[Dict[str, str], str, List[str]]:
                 i += 1
             fm[key] = " ".join(block).strip()
             continue
-        fm[key] = _strip_quotes(value)
+        # Plain scalar. YAML folds indented continuation lines with spaces, so
+        # `description: foo\n  bar baz` is one value "foo bar baz". Collect them
+        # or the routing text is silently truncated to its first line.
+        parts = [value]
         i += 1
+        while i < end and lines[i][:1] in (" ", "\t") and lines[i].strip():
+            parts.append(lines[i].strip())
+            i += 1
+        fm[key] = _strip_quotes(value) if len(parts) == 1 else " ".join(parts).strip()
 
     body = "\n".join(lines[end + 1:])
     return fm, body, problems
@@ -203,6 +216,17 @@ def _is_version_dir(name: str) -> bool:
     return bool(re.fullmatch(r"v?\d+(\.\d+)*[A-Za-z0-9.+-]*", name))
 
 
+@lru_cache(maxsize=None)
+def _plugin_json_name(manifest: str) -> Optional[str]:
+    """Read a plugin.json `name`, cached: sibling skills share one manifest."""
+    try:
+        data = json.loads(Path(manifest).read_text(encoding="utf-8", errors="replace"))
+        name = data.get("name")
+        return str(name) if name else None
+    except (ValueError, OSError, AttributeError):
+        return None
+
+
 def _plugin_name_for(skill_dir: Path) -> Optional[str]:
     """Walk up from a skill directory to name the plugin that ships it."""
     for parent in skill_dir.parents:
@@ -211,13 +235,9 @@ def _plugin_name_for(skill_dir: Path) -> Optional[str]:
         root = parent.parent
         manifest = root / ".claude-plugin" / "plugin.json"
         if manifest.is_file():
-            try:
-                data = json.loads(manifest.read_text(encoding="utf-8", errors="replace"))
-                name = data.get("name")
-                if name:
-                    return str(name)
-            except (ValueError, OSError, AttributeError):
-                pass
+            name = _plugin_json_name(str(manifest))
+            if name:
+                return name
         if _is_version_dir(root.name) and root.parent != root:
             return root.parent.name
         return root.name
@@ -241,17 +261,30 @@ def _classify(path: Path) -> Tuple[str, Optional[str]]:
     return "scanned", None
 
 
+_PRUNE_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv"}
+
+
 def _bundle_bytes(skill_dir: Path) -> int:
+    """Bytes of the skill's own files.
+
+    Prunes VCS/vendor noise and never descends into a nested skill (a
+    subdirectory carrying its own SKILL.md), so a plugin root or a whole
+    repository dropped in as one skill reports its own footprint rather than
+    the entire tree. Without this, a repo-root SKILL.md billed gigabytes and
+    the walk dominated runtime.
+    """
     total = 0
-    try:
-        for entry in skill_dir.rglob("*"):
-            if entry.is_file():
-                try:
-                    total += entry.stat().st_size
-                except OSError:
-                    pass
-    except OSError:
-        pass
+    root = str(skill_dir)
+    for current, dirs, files in os.walk(root):
+        if current != root and "SKILL.md" in files:
+            dirs[:] = []            # a separate skill owns everything below here
+            continue
+        dirs[:] = [d for d in dirs if d not in _PRUNE_DIRS]
+        for name in files:
+            try:
+                total += os.stat(os.path.join(current, name)).st_size
+            except OSError:
+                pass
     return total
 
 
@@ -303,12 +336,23 @@ def default_roots() -> List[Path]:
     return [c for c in candidates if c.is_dir()]
 
 
-def discover(roots: Sequence[Path]) -> List[Skill]:
+def discover(roots: Sequence[Path], shallow_roots: Sequence[Path] = ()) -> List[Skill]:
+    """Find and load every unique SKILL.md under the roots.
+
+    A root in `shallow_roots` is scanned one level deep (`*/SKILL.md`), the way
+    Claude Code loads an install directory: a whole repo dropped into
+    `~/.claude/skills/foo/` is one skill at `foo/SKILL.md`, not every nested
+    SKILL.md it happens to contain. Every other root is scanned recursively, so
+    pointing skillrot at a marketplace or a collection still audits all of it.
+    """
+    shallow = {Path(r) for r in shallow_roots}
     seen: Set[Path] = set()
-    skills: List[Skill] = []
+    paths: List[Path] = []
     for root in roots:
         if root.is_file():
             found: Iterable[Path] = [root]
+        elif root in shallow:
+            found = sorted(root.glob("*/SKILL.md"))
         else:
             found = sorted(root.rglob("SKILL.md"))
         for path in found:
@@ -319,8 +363,14 @@ def discover(roots: Sequence[Path]) -> List[Skill]:
             if resolved in seen:
                 continue
             seen.add(resolved)
-            skills.append(load_skill(path))
-    return skills
+            paths.append(path)
+    if not paths:
+        return []
+    # Reads are I/O bound (often on an external disk); load in parallel but
+    # keep discovery order so output is deterministic.
+    workers = min(32, (os.cpu_count() or 4) * 4, len(paths))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        return list(pool.map(load_skill, paths))
 
 
 # --- Usage evidence -------------------------------------------------------
@@ -474,6 +524,8 @@ def analyze(
     portable: bool = False,
     body_line_budget: int = DEFAULT_BODY_LINE_BUDGET,
     similarity: float = DEFAULT_SIMILARITY,
+    listing_budget: Optional[int] = None,
+    chars_per_token: float = DEFAULT_CHARS_PER_TOKEN,
 ) -> List[Finding]:
     findings: List[Finding] = []
 
@@ -513,7 +565,7 @@ def analyze(
 
         if fm and not description:
             add("SR002", "error", skill,
-                "No `description`. Routing falls back to the first paragraph of the body.",
+                "No `description`. Routing falls back to the first non-empty line of the body.",
                 "Add a description that says what the skill does and when to use it.")
         elif description and len(description) < 15:
             add("SR025", "warn", skill,
@@ -541,7 +593,7 @@ def analyze(
                     "`{}: {}` is not a boolean.".format(bool_field, fm[bool_field]),
                     "Use true/false (yes/no/on/off/1/0 also work).")
 
-        if description and not any(cue in description.lower() for cue in TRIGGER_CUES):
+        if description and not any(cue in combined.lower() for cue in TRIGGER_CUES):
             add("SR022", "warn", skill,
                 "Description never says *when* to use the skill, only what it is.",
                 "Append a trigger clause: 'Use when the user asks to ...'.")
@@ -613,6 +665,16 @@ def analyze(
                     "Uninstall it, or fix the description so it can fire.",
                 ))
 
+    if listing_budget is not None:
+        for skill in name_only_skills(skills, usage or {}, listing_budget, chars_per_token):
+            findings.append(Finding(
+                "SR030", "info", skill.command, str(skill.path),
+                "Listing budget is full, so this skill lists name-only: its description "
+                "is not in context and the router can't match it by keyword.",
+                "Turn off skills you don't use (skillOverrides), or raise the listing "
+                "budget with skillListingBudgetFraction / SLASH_COMMAND_TOOL_CHAR_BUDGET.",
+            ))
+
     findings.sort(key=lambda f: (SEVERITIES.get(f.severity, 3), f.rule, f.command))
     return findings
 
@@ -622,27 +684,93 @@ def analyze(
 @dataclass
 class Budget:
     skills: int
-    always_on_tokens: int
+    name_tokens: int          # every skill name; always in the listing
+    desc_tokens: int          # descriptions the full listing wants (per-entry capped)
     body_tokens: int
     bundle_bytes: int
     context_window: int
+    listing_budget: int       # tokens the harness allows the listing (1% of window)
+
+    @property
+    def requested_tokens(self) -> int:
+        """What the whole listing would cost if nothing were dropped."""
+        return self.name_tokens + self.desc_tokens
+
+    @property
+    def always_on_tokens(self) -> int:
+        """What actually reaches the model: names, plus descriptions until the
+        budget is full."""
+        remaining = max(0, self.listing_budget - self.name_tokens)
+        return self.name_tokens + min(self.desc_tokens, remaining)
+
+    @property
+    def overflows(self) -> bool:
+        return self.requested_tokens > self.listing_budget
 
     @property
     def context_percent(self) -> float:
         return 100.0 * self.always_on_tokens / self.context_window if self.context_window else 0.0
+
+    @property
+    def budget_percent(self) -> float:
+        return 100.0 * self.requested_tokens / self.listing_budget if self.listing_budget else 0.0
+
+
+def _name_text(skill: Skill) -> str:
+    return skill.frontmatter.get("name") or skill.command
+
+
+def _name_tokens(skill: Skill, chars_per_token: float) -> int:
+    return estimate_tokens(_name_text(skill) + ": ", chars_per_token)
+
+
+def _desc_tokens(skill: Skill, chars_per_token: float) -> int:
+    combined = " ".join(p for p in (skill.description, skill.when_to_use) if p)
+    return estimate_tokens(combined[:LISTING_CHAR_CAP], chars_per_token)
 
 
 def listing_tokens(skill: Skill, chars_per_token: float) -> int:
     return estimate_tokens(skill.listing_text[:LISTING_CHAR_CAP], chars_per_token)
 
 
-def budget(skills: Sequence[Skill], chars_per_token: float, context_window: int) -> Budget:
+def name_only_skills(
+    skills: Sequence[Skill], usage: Dict[str, int], listing_budget: int, chars_per_token: float
+) -> List[Skill]:
+    """Skills whose description won't fit the listing budget.
+
+    Names are always listed; the remaining budget fills with descriptions
+    most-used first (Claude Code drops the least-used ones), tie-broken by the
+    cheaper description so more of them fit.
+    """
+    remaining = listing_budget - sum(_name_tokens(s, chars_per_token) for s in skills)
+    dropped: List[Skill] = []
+    ordered = sorted(
+        skills,
+        key=lambda s: (-resolve_usage(s, usage), _desc_tokens(s, chars_per_token)),
+    )
+    for skill in ordered:
+        cost = _desc_tokens(skill, chars_per_token)
+        if remaining >= cost:
+            remaining -= cost
+        else:
+            dropped.append(skill)
+    return dropped
+
+
+def budget(
+    skills: Sequence[Skill],
+    chars_per_token: float,
+    context_window: int,
+    budget_fraction: float = DEFAULT_BUDGET_FRACTION,
+) -> Budget:
     return Budget(
         skills=len(skills),
-        always_on_tokens=sum(listing_tokens(s, chars_per_token) for s in skills),
+        name_tokens=sum(_name_tokens(s, chars_per_token) for s in skills),
+        desc_tokens=sum(_desc_tokens(s, chars_per_token) for s in skills),
         body_tokens=sum(estimate_tokens(s.body, chars_per_token) for s in skills),
         bundle_bytes=sum(s.bundle_bytes for s in skills),
         context_window=context_window,
+        listing_budget=int(round(context_window * budget_fraction)),
     )
 
 
@@ -690,6 +818,7 @@ def render(
     errors = sum(1 for f in findings if f.severity == "error")
     warns = sum(1 for f in findings if f.severity == "warn")
     dead = sum(1 for f in findings if f.rule == "SR024")
+    name_only = sum(1 for f in findings if f.rule == "SR030")
 
     out.append("")
     out.append(bold("skillrot {}".format(__version__)))
@@ -698,6 +827,13 @@ def render(
     out.append("    {} skills discovered".format(totals.skills))
     out.append("    ~{:,} tokens in the always-on listing  ({:.1f}% of a {:,}-token window)".format(
         totals.always_on_tokens, totals.context_percent, totals.context_window))
+    out.append("    ~{:,} tok listing budget ({:.0f}% requested)".format(
+        totals.listing_budget, totals.budget_percent))
+    if totals.overflows:
+        over = totals.requested_tokens - totals.listing_budget
+        out.append("    " + _paint(
+            "over budget by ~{:,} tok: descriptions are being dropped".format(over),
+            "warn", color))
     out.append("    ~{:,} tokens of skill bodies waiting to load".format(totals.body_tokens))
     out.append("    {} on disk".format(_human_bytes(totals.bundle_bytes)))
     out.append("")
@@ -740,6 +876,8 @@ def render(
         out.append("")
 
     verdict = "{} error(s), {} warning(s)".format(errors, warns)
+    if name_only:
+        verdict += ", {} name-only".format(name_only)
     if usage is not None:
         verdict += ", {} skill(s) never fired".format(dead)
     out.append(bold("  " + verdict))
@@ -759,6 +897,12 @@ def to_json(
         "budget": {
             "skills": totals.skills,
             "always_on_tokens": totals.always_on_tokens,
+            "requested_tokens": totals.requested_tokens,
+            "name_tokens": totals.name_tokens,
+            "desc_tokens": totals.desc_tokens,
+            "listing_budget": totals.listing_budget,
+            "budget_percent": round(totals.budget_percent, 2),
+            "overflows": totals.overflows,
             "body_tokens": totals.body_tokens,
             "bundle_bytes": totals.bundle_bytes,
             "context_window": totals.context_window,
@@ -786,6 +930,88 @@ def to_json(
         ],
     }
     return json.dumps(payload, indent=2, ensure_ascii=False)
+
+
+# --- SVG visual -----------------------------------------------------------
+
+def _svg_escape(text: str) -> str:
+    return (text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def to_svg(
+    skills: Sequence[Skill],
+    totals: Budget,
+    usage: Optional[Dict[str, int]],
+    chars_per_token: float,
+    top: int = 10,
+) -> str:
+    """A self-contained, theme-aware budget chart.
+
+    One bar for the listing (filled to the budget line, overflow hatched) and a
+    ranked bar per heaviest skill. No dependencies: the ranking is the point,
+    the numbers are the 4-char-per-token estimate the rest of the tool uses.
+    """
+    ranked = sorted(skills, key=lambda s: listing_tokens(s, chars_per_token), reverse=True)[:top]
+    row_h, pad_top, left, width = 30, 150, 250, 640
+    height = pad_top + row_h * (len(ranked) + 1) + 40
+    heaviest = max((listing_tokens(s, chars_per_token) for s in ranked), default=1) or 1
+    budget_line = totals.listing_budget or 1
+    bar_scale = width / max(budget_line, totals.requested_tokens, 1)
+
+    def bar_row(y, label, tokens, sub, fill):
+        lx = left + min(tokens * bar_scale, width)
+        note = _svg_escape("{:,} tok  {}".format(tokens, sub))
+        return (
+            '<text x="{lx0}" y="{ty}" class="lbl" text-anchor="end">{lab}</text>'
+            '<rect x="{x}" y="{by}" width="{w:.1f}" height="16" rx="3" fill="{fill}"/>'
+            '<text x="{tx:.1f}" y="{ty}" class="val">{note}</text>'
+        ).format(lx0=left - 12, ty=y + 13, lab=_svg_escape(label), x=left, by=y,
+                 w=min(tokens * bar_scale, width), fill=fill, tx=lx + 8, note=note)
+
+    parts = [
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" '
+        'font-family="ui-monospace,Menlo,Consolas,monospace">'.format(w=left + width + 40, h=height),
+        "<style>"
+        ":root{--bg:#ffffff;--fg:#1a1a1a;--mut:#6b7280;--bar:#2563eb;--over:#dc2626;--line:#9ca3af}"
+        "@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--mut:#8b949e;"
+        "--bar:#3b82f6;--over:#f85149;--line:#484f58}}"
+        ".bg{fill:var(--bg)}.title{fill:var(--fg);font-size:22px;font-weight:700}"
+        ".sub{fill:var(--mut);font-size:13px}.lbl{fill:var(--fg);font-size:12px}"
+        ".val{fill:var(--mut);font-size:11px;dominant-baseline:middle}"
+        ".hd{fill:var(--fg);font-size:13px;font-weight:600}"
+        "</style>",
+        '<rect class="bg" x="0" y="0" width="{w}" height="{h}"/>'.format(w=left + width + 40, h=height),
+        '<text x="30" y="42" class="title">skillrot</text>',
+        '<text x="30" y="68" class="sub">{}</text>'.format(_svg_escape(
+            "{:,} skills  •  {:,} tok always-on  •  {:.1f}% of a {:,}-tok window".format(
+                totals.skills, totals.always_on_tokens, totals.context_percent, totals.context_window))),
+        '<text x="30" y="90" class="sub">{}</text>'.format(_svg_escape(
+            "listing budget {:,} tok  •  {:.0f}% requested{}".format(
+                totals.listing_budget, totals.budget_percent,
+                "  •  OVER: descriptions dropped" if totals.overflows else "  •  fits"))),
+        '<text x="30" y="{y}" class="hd">Listing</text>'.format(y=pad_top - 18),
+    ]
+    over_fill = "var(--over)" if totals.overflows else "var(--bar)"
+    parts.append(bar_row(pad_top, "requested", totals.requested_tokens,
+                         "names + descriptions", over_fill))
+    # budget line
+    bx = left + min(budget_line * bar_scale, width)
+    parts.append(
+        '<line x1="{bx:.1f}" y1="{y0}" x2="{bx:.1f}" y2="{y1}" stroke="var(--line)" '
+        'stroke-dasharray="4 3"/>'
+        '<text x="{bx:.1f}" y="{yt}" class="val" text-anchor="middle">budget</text>'.format(
+            bx=bx, y0=pad_top - 8, y1=pad_top + 24, yt=pad_top - 12))
+    parts.append('<text x="30" y="{y}" class="hd">Heaviest listings</text>'.format(
+        y=pad_top + row_h + 12))
+    for idx, s in enumerate(ranked):
+        y = pad_top + row_h * (idx + 1) + 22
+        sub = ""
+        if usage is not None:
+            c = resolve_usage(s, usage)
+            sub = "never fired" if c == 0 else "{}x".format(c)
+        parts.append(bar_row(y, s.command[:30], listing_tokens(s, chars_per_token), sub, "var(--bar)"))
+    parts.append("</svg>")
+    return "".join(parts)
 
 
 # --- CLI ------------------------------------------------------------------
@@ -820,6 +1046,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--chars-per-token", type=float, default=DEFAULT_CHARS_PER_TOKEN,
         help="Token estimate divisor.")
     parser.add_argument(
+        "--budget-fraction", type=float, default=DEFAULT_BUDGET_FRACTION,
+        help="Listing budget as a fraction of the context window (Claude Code default 0.01).")
+    parser.add_argument(
+        "--svg", type=Path, default=None,
+        help="Write a budget chart (SVG) to this path.")
+    parser.add_argument(
         "--fail-on", choices=("never", "error", "warn"), default="never",
         help="Exit non-zero at this severity. Use in CI.")
     parser.add_argument(
@@ -833,7 +1065,14 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = build_parser().parse_args(argv)
 
-    roots = list(args.paths) if args.paths else default_roots()
+    # When the user passes paths, audit everything under them. With no paths we
+    # audit the install locations, scanning each skills directory one level deep
+    # the way Claude Code loads it (the plugins dir stays recursive).
+    if args.paths:
+        roots, shallow = list(args.paths), []
+    else:
+        roots = default_roots()
+        shallow = [r for r in roots if r.name != "plugins"]
     if not roots:
         sys.stderr.write("skillrot: no skills found. Pass a path to scan.\n")
         return 2
@@ -844,18 +1083,27 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if not roots:
         return 2
 
-    skills = discover(roots)
+    skills = discover(roots, shallow_roots=shallow)
     if not skills:
         sys.stderr.write("skillrot: found no SKILL.md under {}\n".format(
             ", ".join(str(r) for r in roots)))
         return 2
 
     usage = None if args.no_usage else usage_counts(args.transcripts)
+    totals = budget(skills, args.chars_per_token, args.context_window, args.budget_fraction)
     findings = analyze(
         skills, usage=usage, portable=args.portable,
         body_line_budget=args.body_lines, similarity=args.similarity,
+        listing_budget=totals.listing_budget, chars_per_token=args.chars_per_token,
     )
-    totals = budget(skills, args.chars_per_token, args.context_window)
+
+    if args.svg:
+        try:
+            args.svg.write_text(
+                to_svg(skills, totals, usage, args.chars_per_token, args.top), encoding="utf-8")
+            sys.stderr.write("skillrot: wrote {}\n".format(args.svg))
+        except OSError as exc:
+            sys.stderr.write("skillrot: could not write {}: {}\n".format(args.svg, exc))
 
     if args.json:
         print(to_json(skills, findings, totals, usage, args.chars_per_token))

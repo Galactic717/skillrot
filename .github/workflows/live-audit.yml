@@ -1,0 +1,52 @@
+name: live-audit
+
+# Weekly proof that skillrot runs on real, large, public skill libraries.
+# Clones each, audits it, and publishes the budget chart + JSON as artifacts.
+on:
+  schedule:
+    - cron: "17 6 * * 1"   # Mondays 06:17 UTC
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        repo:
+          - obra/superpowers
+          - addyosmani/agent-skills
+          - alirezarezvani/claude-skills
+          - affaan-m/ECC
+          - ComposioHQ/awesome-claude-skills
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Clone the target library
+        run: git clone --depth 1 "https://github.com/${{ matrix.repo }}" target
+
+      - name: Audit (never fails the job — this is a report)
+        run: |
+          slug="$(echo '${{ matrix.repo }}' | tr '/' '-')"
+          python skillrot.py target --no-usage --no-color --top 10 | tee "audit-$slug.txt"
+          python skillrot.py target --no-usage --json > "audit-$slug.json"
+          python skillrot.py target --no-usage --svg "audit-$slug.svg"
+          {
+            echo "## ${{ matrix.repo }}"
+            echo '```'
+            sed -n '1,12p' "audit-$slug.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-${{ strategy.job-index }}
+          path: |
+            audit-*.txt
+            audit-*.json
+            audit-*.svg
+          if-no-files-found: warn

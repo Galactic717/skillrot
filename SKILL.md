@@ -26,9 +26,11 @@ Useful flags: `--portable` (check a skill will survive a claude.ai upload), `--n
 
 ## Reading the output
 
-`budget.always_on_tokens` is paid on every request. `budget.body_tokens` is what loads
-when skills fire and then squats in context for the rest of the session. Findings carry a
-rule id, a severity and a fix.
+`budget.always_on_tokens` is paid on every request. `budget.overflows` is true when the
+listing wants more than `budget.listing_budget` (1% of the window): Claude Code then lists
+the least-used skills name-only, and skillrot flags each with SR030 — they can't be matched
+by keyword. `budget.body_tokens` is what loads when skills fire and then squats in context
+for the rest of the session. Findings carry a rule id, a severity and a fix.
 
 ## Reporting back
 
@@ -38,6 +40,9 @@ rule id, a severity and a fix.
 4. For a prune recommendation, rank by listing cost among skills that have never fired.
    Say plainly that "never fired" is evidence from local history, not proof a skill is
    useless — a recently installed skill has not fired yet either.
+5. If the listing is over budget (SR030), lead with that: naming which skills are already
+   name-only is more urgent than a merely expensive skill, because the router is blind to
+   them right now.
 
 Do not delete or edit any skill without the user asking for that specific change.
 

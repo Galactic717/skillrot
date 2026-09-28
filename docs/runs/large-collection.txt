@@ -1,0 +1,30 @@
+
+skillrot 0.2.0
+
+  Context bill
+    4642 skills discovered
+    ~28,420 tokens in the always-on listing  (14.2% of a 200,000-token window)
+    ~2,000 tok listing budget (12914% requested)
+    over budget by ~256,270 tok: descriptions are being dropped
+    ~7,543,695 tokens of skill bodies waiting to load
+    262.2MB on disk
+
+  Heaviest listings  (paid on every message)
+      384 tok  /offensive-windows-privesc
+      382 tok  /offensive-tls-attacks
+      363 tok  /offensive-dependency-confusion
+      358 tok  /offensive-supply-chain
+      343 tok  /offensive-social-engineering
+      334 tok  /offensive-linux-privesc
+
+  Findings
+
+  ERROR
+    SR001 /atelier-zero-image-generation-prompt-pack-mrrxpegw
+      No YAML frontmatter block.
+      fix: Add a `---` delimited block with at least `description`.
+    SR001 /design-system-source-context-mr0bb87z
+      No YAML frontmatter block.
+      fix: Add a `---` delimited block with at least `description`.
+    SR001 /engineering-advanced-skills:sample-skill
+      Frontmatter does not start on line 1, so the whole file is read as body and the skill has no description at all.
