@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>skillrot explainer</title>
+<style>
+  :root {
+    --bg: #111110; --panel: #1a1a19; --line: #383835; --hair: #2a2a28;
+    --text: #ffffff; --text-2: #c3c2b7; --muted: #8a897f;
+    --blue: #3987e5; --blue-soft: rgba(57, 135, 229, 0.42);
+    --good: #0ca30c; --critical: #d03b3b; --critical-soft: rgba(208, 59, 59, 0.28);
+    --sans: "Segoe UI Variable Display", "Segoe UI", Inter, system-ui, sans-serif;
+    --mono: "Cascadia Code", "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; background: var(--bg); overflow: hidden; }
+  #stage {
+    position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
+    transform-origin: 0 0; background: var(--bg); color: var(--text);
+    font-family: var(--sans); overflow: hidden;
+  }
+  section { position: absolute; inset: 0; opacity: 0; }
+  .mono { font-family: var(--mono); }
+  .brand { position: absolute; left: 72px; top: 52px; font: 700 30px var(--mono); color: var(--text-2); letter-spacing: 0.5px; }
+
+  /* S1 hook */
+  #s1 .h { position: absolute; left: 150px; width: 1620px; font-weight: 700; font-size: 104px; line-height: 1.08; letter-spacing: -2px; }
+  #s1 .sub { position: absolute; left: 154px; font-size: 44px; color: var(--text-2); }
+
+  /* S2 mechanism */
+  .title { position: absolute; left: 120px; top: 130px; font-size: 54px; font-weight: 700; letter-spacing: -1px; }
+  .subtitle { position: absolute; left: 122px; top: 204px; font-size: 30px; color: var(--text-2); }
+  #listing { position: absolute; left: 120px; top: 290px; width: 1080px; height: 690px; background: var(--panel); border: 1px solid var(--hair); border-radius: 16px; padding: 26px 30px; }
+  #listing .cap { font: 600 22px var(--mono); color: var(--muted); margin-bottom: 14px; display: flex; justify-content: space-between; }
+  .row { font: 24px/1 var(--mono); height: 49px; display: flex; align-items: center; gap: 12px; white-space: nowrap; overflow: hidden; }
+  .row .nm { color: var(--text); background: rgba(57,135,229,0.20); border: 1px solid rgba(57,135,229,0.55); padding: 6px 10px; border-radius: 7px; flex: none; }
+  .row .ds { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; }
+  .row .tag { flex: none; font: 600 18px var(--mono); color: var(--critical); border: 1px solid var(--critical); border-radius: 6px; padding: 4px 8px; margin-left: auto; }
+  #gaugebox { position: absolute; left: 1260px; top: 290px; width: 540px; height: 690px; background: var(--panel); border: 1px solid var(--hair); border-radius: 16px; padding: 30px; }
+  #gaugebox .cap { font: 600 22px var(--mono); color: var(--muted); }
+  #gauge { position: absolute; left: 30px; right: 30px; top: 92px; height: 56px; border-radius: 8px; background: #232321; overflow: visible; }
+  #gauge .seg { position: absolute; top: 0; height: 56px; }
+  #g-names { background: var(--blue); border-radius: 8px 0 0 8px; }
+  #g-desc { background: var(--blue-soft); }
+  #g-over { background: repeating-linear-gradient(135deg, var(--critical-soft) 0 10px, rgba(208,59,59,0.10) 10px 20px); border: 2px solid var(--critical); border-left: none; border-radius: 0 8px 8px 0; }
+  #g-line { position: absolute; top: -14px; width: 3px; height: 78px; background: var(--text); }
+  #g-linelbl { position: absolute; top: 170px; font: 600 20px var(--mono); color: var(--text); transform: translateX(-50%); white-space: nowrap; }
+  .stat { position: absolute; left: 30px; right: 30px; font-size: 30px; color: var(--text-2); display: flex; justify-content: space-between; }
+  .stat b { color: var(--text); font-family: var(--mono); font-size: 34px; }
+  .stat.bad b { color: var(--critical); }
+  #s2 .foot { position: absolute; left: 30px; right: 30px; top: 500px; font-size: 29px; line-height: 1.36; color: var(--text); border-top: 1px solid var(--hair); padding-top: 26px; }
+  .legend { position: absolute; left: 30px; top: 226px; font: 20px var(--mono); color: var(--text-2); display: flex; gap: 22px; }
+  .sw { display: inline-block; width: 16px; height: 16px; border-radius: 3px; vertical-align: -2px; margin-right: 7px; }
+
+  /* S3 terminal */
+  #term { position: absolute; left: 190px; top: 150px; width: 1540px; height: 820px; background: #0c0c0b; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  #term .bar { height: 50px; background: #1d1d1b; display: flex; align-items: center; gap: 10px; padding: 0 20px; }
+  #term .dot { width: 14px; height: 14px; border-radius: 50%; background: #3a3a37; }
+  #term .bar span { margin-left: 14px; font: 20px var(--mono); color: var(--muted); }
+  #term pre { font: 26px/1.42 var(--mono); color: var(--text-2); padding: 26px 34px; white-space: pre; }
+  #term .p { color: var(--good); } #term .c { color: var(--text); }
+  #term .hi { color: var(--critical); font-weight: 700; }
+  #term .w { color: var(--text); font-weight: 700; }
+  #s3 .kicker { position: absolute; left: 192px; top: 88px; font: 600 26px var(--mono); color: var(--muted); }
+
+  /* S4 leaderboard */
+  #board { position: absolute; left: 120px; top: 300px; width: 1680px; }
+  .lrow { position: relative; height: 118px; border-top: 1px solid var(--hair); }
+  .lrow .repo { position: absolute; left: 0; top: 26px; font: 600 32px var(--mono); color: var(--text); }
+  .lrow .n { position: absolute; left: 0; top: 70px; font-size: 24px; color: var(--text-2); }
+  .lrow .track { position: absolute; left: 700px; width: 560px; top: 48px; height: 22px; }
+  .lrow .fill { position: absolute; left: 0; top: 0; height: 22px; border-radius: 0 4px 4px 0; }
+  .lrow .x { position: absolute; left: 1290px; top: 34px; font: 700 44px var(--mono); color: var(--text); }
+  .lrow .st { position: absolute; left: 1470px; top: 40px; font: 600 26px var(--sans); display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+  .ico { width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font: 700 22px var(--sans); color: #fff; }
+  #axis { position: absolute; left: 820px; top: 292px; width: 560px; height: 620px; }
+  #axis .tk { position: absolute; top: 0; height: 600px; width: 1px; background: var(--hair); }
+  #axis .tk.b { background: var(--text); width: 2px; }
+  #axis .tl { position: absolute; top: -30px; font: 20px var(--mono); color: var(--muted); transform: translateX(-50%); white-space: nowrap; }
+  #axis .tl.b { color: var(--text); font-weight: 700; }
+  #s4 .src { position: absolute; left: 120px; top: 986px; font: 22px var(--mono); color: var(--muted); }
+
+  /* S5 CTA */
+  #s5 .word { position: absolute; left: 0; right: 0; top: 190px; text-align: center; font: 700 170px var(--mono); letter-spacing: -4px; }
+  #s5 .tag { position: absolute; left: 0; right: 0; top: 420px; text-align: center; font-size: 44px; color: var(--text-2); }
+  #s5 .chips { position: absolute; left: 0; right: 0; top: 520px; display: flex; justify-content: center; gap: 22px; }
+  #s5 .chip { font: 600 28px var(--sans); border: 1px solid var(--line); border-radius: 999px; padding: 12px 26px; color: var(--text); }
+  #s5 .cmd { position: absolute; left: 240px; right: 240px; top: 650px; background: #0c0c0b; border: 1px solid var(--line); border-radius: 14px; padding: 30px 40px; font: 28px/1.6 var(--mono); color: var(--text); }
+  #s5 .cmd .p { color: var(--good); }
+  #s5 .url { position: absolute; left: 0; right: 0; top: 900px; text-align: center; font: 700 42px var(--mono); color: var(--blue); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="brand" id="brand">skillrot</div>
+
+  <section id="s1">
+    <div class="h" id="h1a" style="top:330px">Every skill you install</div>
+    <div class="h" id="h1b" style="top:450px">is billed on <span style="color:var(--blue)">every message.</span></div>
+    <div class="sub" id="h1c" style="top:620px">Even the ones that never fire.</div>
+  </section>
+
+  <section id="s2">
+    <div class="title">Claude Code keeps a skill listing in context</div>
+    <div class="subtitle">Its budget is 1% of the context window. Names always stay. Descriptions fill what's left.</div>
+    <div id="listing">
+      <div class="cap"><span>skill listing · real ECC skills</span><span>most used ↓ least used</span></div>
+      <div id="rows"></div>
+    </div>
+    <div id="gaugebox">
+      <div class="cap">listing budget</div>
+      <div id="gauge">
+        <div class="seg" id="g-names"></div><div class="seg" id="g-desc"></div><div class="seg" id="g-over"></div>
+        <div id="g-line"></div>
+      </div>
+      <div id="g-linelbl">budget = 1% of window</div>
+      <div class="legend"><span><i class="sw" style="background:var(--blue)"></i>names</span><span><i class="sw" style="background:var(--blue-soft)"></i>descriptions</span><span><i class="sw" style="background:var(--critical-soft);outline:2px solid var(--critical)"></i>over budget</span></div>
+      <div class="stat" style="top:300px"><span>names in context</span><b id="st-names">0</b></div>
+      <div class="stat" style="top:360px"><span>descriptions in context</span><b id="st-desc">0</b></div>
+      <div class="stat bad" style="top:420px"><span>name-only (unroutable)</span><b id="st-drop">0</b></div>
+      <div class="foot" id="s2foot">Past the budget, descriptions drop — least used first. The router can't match what it can't read.</div>
+    </div>
+  </section>
+
+  <section id="s3">
+        <div id="term">
+      <div class="bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span>terminal · real run: affaan-m/ECC · live CI audit 2026-09-28</span></div>
+      <pre id="tout"></pre>
+    </div>
+  </section>
+
+  <section id="s4">
+    <div class="title">Public skill libraries, audited every week</div>
+    <div class="subtitle">Listing requested vs. its budget · 200k-token window · log scale</div>
+    <div id="axis"></div>
+    <div id="board"></div>
+    <div class="src">github.com/Galactic717/skillrot · .github/workflows/live-audit.yml · run 2026-09-28</div>
+  </section>
+
+  <section id="s5">
+    <div class="word">skillrot</div>
+    <div class="tag">See what your skill library costs — and which skills your agent can't see.</div>
+    <div class="chips"><span class="chip">one Python file</span><span class="chip">zero dependencies</span><span class="chip">deterministic</span><span class="chip">CI-ready</span></div>
+    <div class="cmd"><span class="p">$</span> curl -O https://raw.githubusercontent.com/Galactic717/skillrot/main/skillrot.py<br><span class="p">$</span> python skillrot.py</div>
+    <div class="url">github.com/Galactic717/skillrot</div>
+  </section>
+</div>
+
+<script>
+const DURATION = 27;
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const ease = p => 1 - Math.pow(1 - p, 3);
+const $ = id => document.getElementById(id);
+const scenes = [["s1", 0, 3.6], ["s2", 3.6, 11.6], ["s3", 11.6, 18.6], ["s4", 18.6, 23.6], ["s5", 23.6, 27.2]];
+
+// --- S2 data: real ECC skill names and descriptions (trimmed). Order is the
+// "most used first" rule, not measured usage.
+const ROWS = [
+  ["ecc:python-patterns", "Pythonic idioms, PEP 8 standards, type hints, and best practices"],
+  ["ecc:browser-qa", "Use this skill to automate visual testing and UI interaction"],
+  ["ecc:postgres-patterns", "PostgreSQL patterns for query optimization, schema design"],
+  ["ecc:frontend-patterns", "Frontend patterns for React, Next.js, state management"],
+  ["ecc:iterative-retrieval", "Progressively refining context retrieval for subagents"],
+  ["ecc:autonomous-loops", "Patterns and architectures for autonomous Claude Code loops"],
+  ["ecc:laravel-tdd", "Laravel testing strategies with PHPUnit, Pest, model factories"],
+  ["ecc:nextjs-turbopack", "Next.js 16+ and Turbopack: incremental bundling, FS caching"],
+  ["ecc:ai-first-engineering", "Operating model for teams where agents generate the code"],
+  ["ecc:content-hash-cache-pattern", "Cache expensive file processing with SHA-256 content hashes"],
+  ["ecc:dynamic-workflow-mode", "Task-local harnesses, eval gates, reusable skill extraction"],
+  ["ecc:ralphinho-rfc-pipeline", "RFC-driven multi-agent DAG execution with quality gates"],
+];
+// Schematic units: 12 names + 5 descriptions fill the budget exactly.
+const NAME_U = 2, DESC_U = 12.4, BUDGET_U = ROWS.length * NAME_U + 5 * DESC_U;
+const FULL_U = ROWS.length * (NAME_U + DESC_U);
+const rowsEl = $("rows");
+ROWS.forEach(([n, d], i) => {
+  const r = document.createElement("div"); r.className = "row"; r.id = "r" + i;
+  r.innerHTML = `<span class="nm">${n}</span><span class="ds">: ${d}</span><span class="tag">name-only</span>`;
+  rowsEl.appendChild(r);
+});
+
+// --- S3 terminal: the real output of the 2026-09-28 live audit of affaan-m/ECC.
+const CMD = "python skillrot.py ./ECC";
+const OUT = [
+  ["", ""], ["w", "skillrot 0.2.0"], ["", ""], ["w", "  Context bill"],
+  ["", "    292 skills discovered"],
+  ["", "    ~2,000 tokens in the always-on listing  (1.0% of a 200,000-token window)"],
+  ["", "    ~2,000 tok listing budget (1182% requested)"],
+  ["hi", "    over budget by ~21,639 tok: descriptions are being dropped"],
+  ["", "    ~637,625 tokens of skill bodies waiting to load"],
+  ["", ""], ["w", "  Heaviest listings  (paid on every message)"],
+  ["", "      148 tok  /ecc:intent-driven-development"],
+  ["", "      146 tok  /ecc:flox-environments"],
+  ["", "      131 tok  /ecc:benchmark-methodology"],
+  ["", "      …"],
+  ["verdict", "  0 error(s), 36 warning(s), 278 name-only"],
+];
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+// --- S4: live-audit results (requested / budget), run 2026-09-28.
+const LIBS = [
+  ["obra/superpowers", 15, 0.33, 0],
+  ["addyosmani/agent-skills", 25, 1.17, 2],
+  ["affaan-m/ECC", 292, 11.82, 278],
+  ["ComposioHQ/awesome-claude-skills", 864, 14.2, 864],
+  ["alirezarezvani/claude-skills", 382, 22.74, 372],
+];
+const LOG_MIN = -1, LOG_MAX = Math.log10(30), TRACK = 560;
+const xOf = v => (Math.log10(v) - LOG_MIN) / (LOG_MAX - LOG_MIN) * TRACK;
+const axis = $("axis");
+[[0.1, "0.1×"], [1, "1× budget"], [10, "10×"]].forEach(([v, l]) => {
+  const b = v === 1 ? " b" : "";
+  axis.insertAdjacentHTML("beforeend", `<div class="tk${b}" style="left:${xOf(v)}px"></div><div class="tl${b}" style="left:${xOf(v)}px">${l}</div>`);
+});
+const board = $("board");
+LIBS.forEach(([repo, n, x, drop], i) => {
+  const over = x > 1;
+  board.insertAdjacentHTML("beforeend", `<div class="lrow" id="l${i}">
+    <div class="repo">${repo}</div><div class="n">${n} skills</div>
+    <div class="track"><div class="fill" id="lf${i}" style="background:${over ? "var(--critical)" : "var(--good)"}"></div></div>
+    <div class="x">${x < 1 ? x.toFixed(2) : x.toFixed(1)}×</div>
+    <div class="st"><span class="ico" style="background:${over ? "var(--critical)" : "var(--good)"}">${over ? "✕" : "✓"}</span>${over ? drop + " name-only" : "fits"}</div></div>`);
+});
+
+function show(id, t, a, b) {
+  const p = Math.min(seg(t, a, a + 0.45), 1 - seg(t, b - 0.45, b));
+  $(id).style.opacity = p;
+  return p > 0;
+}
+
+function seek(t) {
+  scenes.forEach(([id, a, b]) => show(id, t, a, b));
+  $("brand").style.opacity = (t > 3.3 && t < 11.5) || (t > 18.7 && t < 23.4) ? 1 : 0;
+
+  // S1
+  [["h1a", 0.15], ["h1b", 0.65], ["h1c", 1.5]].forEach(([id, a]) => {
+    const p = ease(seg(t, a, a + 0.55));
+    $(id).style.opacity = p; $(id).style.transform = `translateY(${(1 - p) * 26}px)`;
+  });
+
+  // S2: names arrive first, then descriptions most-used first until the budget is full.
+  const nameP = seg(t, 4.3, 6.0), descP = seg(t, 6.4, 9.4);
+  const namesIn = Math.floor(nameP * ROWS.length + (nameP === 1 ? 0 : 0.0001));
+  const descTried = Math.floor(descP * ROWS.length + 1e-6);
+  let used = 0, kept = 0, dropped = 0;
+  ROWS.forEach((_, i) => {
+    const r = $("r" + i), vis = i < namesIn;
+    r.style.opacity = vis ? 1 : 0;
+    const ds = r.children[1], tag = r.children[2];
+    const tried = i < descTried;
+    const fits = i < 5;
+    ds.style.opacity = tried ? (fits ? 1 : 0.28) : 0;
+    ds.style.textDecoration = tried && !fits ? "line-through" : "none";
+    tag.style.opacity = tried && !fits ? 1 : 0;
+    if (tried && fits) kept++;
+    if (tried && !fits) dropped++;
+  });
+  const namesU = namesIn * NAME_U, descU = kept * DESC_U, overU = dropped * DESC_U;
+  const W = 480, scale = W / FULL_U * 0.98;
+  const lineX = BUDGET_U * scale;
+  $("g-names").style.left = "0px"; $("g-names").style.width = namesU * scale + "px";
+  $("g-desc").style.left = namesU * scale + "px"; $("g-desc").style.width = descU * scale + "px";
+  $("g-over").style.left = lineX + "px"; $("g-over").style.width = overU * scale + "px";
+  $("g-over").style.opacity = dropped ? 1 : 0;
+  $("g-line").style.left = lineX + "px"; $("g-linelbl").style.left = 30 + lineX + "px";
+  $("st-names").textContent = `${namesIn}/${ROWS.length}`;
+  $("st-desc").textContent = `${kept}/${ROWS.length}`;
+  $("st-drop").textContent = dropped;
+  $("s2foot").style.opacity = ease(seg(t, 9.6, 10.2));
+
+  // S3: type the command, then stream the real output.
+  const typed = Math.floor(seg(t, 12.1, 13.3) * CMD.length);
+  const cursor = (Math.floor(t * 2.4) % 2 === 0) ? "▌" : " ";
+  const lines = Math.floor(seg(t, 13.6, 16.4) * OUT.length);
+  let html = `<span class="p">$</span> <span class="c">${esc(CMD.slice(0, typed))}</span>${lines === 0 ? cursor : ""}\n`;
+  OUT.slice(0, lines).forEach(([k, s]) => {
+    if (k === "verdict") {
+      html += esc(s).replace("278 name-only", `<span class="hi">278 name-only</span>`) + "\n";
+    } else {
+      html += k ? `<span class="${k}">${esc(s)}</span>\n` : esc(s) + "\n";
+    }
+  });
+  $("tout").innerHTML = html;
+
+  // S4: rows reveal in order, bars grow on the log scale.
+  LIBS.forEach(([, , x], i) => {
+    const p = ease(seg(t, 19.3 + i * 0.55, 19.9 + i * 0.55));
+    $("l" + i).style.opacity = p;
+    $("lf" + i).style.width = Math.max(4, xOf(x)) * p + "px";
+  });
+}
+
+window.seek = seek;
+window.DURATION = DURATION;
+const scaleStage = () => {
+  const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+  const st = $("stage");
+  st.style.transform = `scale(${s})`;
+  st.style.left = (innerWidth - 1920 * s) / 2 + "px"; st.style.top = (innerHeight - 1080 * s) / 2 + "px";
+};
+addEventListener("resize", scaleStage); scaleStage();
+if (!/capture/.test(location.search)) {
+  const t0 = performance.now();
+  const loop = now => { seek(((now - t0) / 1000) % DURATION); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+} else { seek(0); }
+</script>
+</body>
+</html>

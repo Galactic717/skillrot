@@ -8,31 +8,31 @@ already stopped seeing because the listing is over budget.
 
 Zero dependencies. One file. Python 3.9+.
 
-![skillrot budget chart for a 4,642-skill collection](docs/assets/budget-hub.svg)
+![skillrot explainer: the listing budget, a real audit, and weekly results](docs/assets/skillrot-explainer.gif)
 
-<sub>`skillrot ./collection --svg budget.svg` on a 4,642-skill library: the names alone overflow the listing budget, so every description is dropped.</sub>
+<sub>27-second explainer · [MP4](docs/assets/skillrot-explainer.mp4) · [interactive page](docs/demo/explainer.html) · every number in it comes from a real run</sub>
 
 ```
-$ skillrot
+$ python skillrot.py ./ECC
 
 skillrot 0.2.0
 
   Context bill
-    45 skills discovered
-    ~4,713 tokens in the always-on listing  (2.4% of a 200,000-token window)
-    ~2,000 tok listing budget (236% requested)
-    over budget by ~2,713 tok: descriptions are being dropped
-    ~137,728 tokens of skill bodies waiting to load
-    3.0MB on disk
+    292 skills discovered
+    ~2,000 tokens in the always-on listing  (1.0% of a 200,000-token window)
+    ~2,000 tok listing budget (1182% requested)
+    over budget by ~21,639 tok: descriptions are being dropped
+    ~637,625 tokens of skill bodies waiting to load
 
   Heaviest listings  (paid on every message)
-      231 tok  /project-artifact:project-artifact  never fired
-      218 tok  /figma:figma-generate-design        never fired
+      148 tok  /ecc:intent-driven-development
+      146 tok  /ecc:flox-environments
+      131 tok  /ecc:benchmark-methodology
 
-  0 error(s), 12 warning(s), 9 name-only, 45 skill(s) never fired
+  0 error(s), 36 warning(s), 278 name-only
 ```
 
-## The number that isn't cute
+## The budget nobody sees
 
 Claude Code doesn't put your whole library in context. It keeps every skill **name**, then
 fills a budget — **1% of the context window** — with descriptions, dropping the least-used
@@ -40,23 +40,26 @@ ones when they don't fit ([docs](https://code.claude.com/docs/en/skills)). A ski
 name-only has no description in front of the router, so it can't be matched to a request by
 keyword. It's installed, it's billed on every message, and it's unroutable.
 
-Point skillrot at one of the 4,000-skill mega-collections people install wholesale and the
-budget stops being a suggestion:
+This repo re-audits popular public libraries every week
+([live-audit.yml](.github/workflows/live-audit.yml)). The run on 2026-09-28:
 
-```
-$ skillrot ./a-4600-skill-collection
+| Library | Skills | Listing vs. budget | Name-only |
+| --- | ---: | ---: | ---: |
+| [obra/superpowers](https://github.com/obra/superpowers) | 15 | 0.33× | 0 |
+| [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) | 25 | 1.17× | 2 |
+| [affaan-m/ECC](https://github.com/affaan-m/ECC) | 292 | 11.8× | 278 |
+| [ComposioHQ/awesome-claude-skills](https://github.com/ComposioHQ/awesome-claude-skills) | 864 | 14.2× | 864 |
+| [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) | 382 | 22.7× | 372 |
 
-    4642 skills discovered
-    ~28,420 tokens in the always-on listing  (14.2% of a 200,000-token window)
-    ~2,000 tok listing budget (12914% requested)
-    over budget by ~256,270 tok: descriptions are being dropped
-```
+Even a tidy 25-skill library already spills two descriptions at a 200k window. Full output
+in [docs/runs](docs/runs/live-audit-2026-09-28.md). This is not a lab result: a widely-used
+library shipped 46 skills at ~3× the budget and Claude Code silently dropped most of them at
+session start ([lifeos#1205](https://github.com/danielmiessler/lifeos/issues/1205)).
+skillrot is the check that catches it on the PR.
 
-The skill **names alone** are 14× the listing budget, so **every description is dropped**.
-This is not hypothetical: a widely-used library shipped 46 skills whose descriptions summed
-to ~3× the budget, and Claude Code silently dropped most of them at session start
-([lifeos#1205](https://github.com/danielmiessler/lifeos/issues/1205)). skillrot is the check
-that catches it before you ship.
+`--svg` draws the same numbers for your own library:
+
+![skillrot --svg output for affaan-m/ECC](docs/assets/budget-ecc.svg)
 
 ## How it works
 
@@ -111,14 +114,17 @@ skillrot --json                 # machine-readable, for scripts and CI
 skillrot --fail-on error        # non-zero exit when something is broken
 skillrot --full                 # print every finding, not the first 20 per rule
 skillrot --no-usage             # skip the transcript scan
+skillrot ./repo --all           # count every SKILL.md, ignoring plugin manifests
 ```
 
 With no path it scans your install locations — `~/.claude/skills`, `~/.claude/plugins`,
 `~/.codex/skills`, `~/.cursor/skills`, `~/.config/agent-skills` and `./.claude/skills` —
 reading each **skills** directory one level deep, the way the loader does: a whole repo
 dropped into `~/.claude/skills/foo/` is one skill at `foo/SKILL.md`, not every nested
-`SKILL.md` it happens to contain. To audit a marketplace or a bundled collection, point
-skillrot straight at it.
+`SKILL.md` it happens to contain. Point it at a marketplace or plugin checkout and it reads
+`.claude-plugin/marketplace.json` / `plugin.json`, counting only the skills Claude Code would
+install — not translated docs or mirrors for other harnesses (`docs/ja-JP/skills`,
+`.gemini/skills`, ...). Any other folder is scanned recursively.
 
 ## Rules
 
@@ -164,7 +170,8 @@ plus the built-in `/skill-doctor`. skillrot is the opposite shape on purpose:
 
 No dependencies means no tokenizer. skillrot estimates at 4 characters per token — close
 enough to rank offenders and size the budget, not exact. Tune it with `--chars-per-token`,
-or pipe `--json` into a real tokenizer for precision. The ranking is what matters. Exact
+or pipe `--json` into a real tokenizer for precision. The ranking is what matters. Legacy `commands/` files also enter the real listing and
+skillrot does not count them yet, so its budget numbers are a lower bound. Exact
 accounting also varies between harnesses and versions; skillrot measures the text the spec
 says goes into the listing, budgeted the way the docs say it's budgeted.
 
