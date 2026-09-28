@@ -969,7 +969,8 @@ def to_svg(
                  w=min(tokens * bar_scale, width), fill=fill, tx=lx + 8, note=note)
 
     parts = [
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" '
+        '<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
+        'viewBox="0 0 {w} {h}" '
         'font-family="ui-monospace,Menlo,Consolas,monospace">'.format(w=left + width + 40, h=height),
         "<style>"
         ":root{--bg:#ffffff;--fg:#1a1a1a;--mut:#6b7280;--bar:#2563eb;--over:#dc2626;--line:#9ca3af}"
