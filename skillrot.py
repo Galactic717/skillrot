@@ -528,7 +528,9 @@ def installed_plugin_entries(home: Path, settings: dict) -> Optional[List[Entry]
             if str(path) not in ("", ".") and path.is_dir():
                 root = path
                 break
-        info = markets.get(market) if isinstance(markets.get(market), dict) else {}
+        info = markets.get(market)
+        if not isinstance(info, dict):
+            info = {}
         location = info.get("installLocation") or (info.get("source") or {}).get("path")
         if location:
             catalog = _read_json(Path(location) / ".claude-plugin" / "marketplace.json") or {}
@@ -1215,7 +1217,6 @@ def to_svg(
     ranked = sorted(skills, key=lambda s: listing_tokens(s, chars_per_token), reverse=True)[:top]
     row_h, pad_top, left, width = 30, 150, 250, 640
     height = pad_top + row_h * (len(ranked) + 1) + 40
-    heaviest = max((listing_tokens(s, chars_per_token) for s in ranked), default=1) or 1
     budget_line = totals.listing_budget or 1
     bar_scale = width / max(budget_line, totals.requested_tokens, 1)
 
