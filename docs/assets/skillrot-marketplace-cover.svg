@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+<title id="title">skillrot — audit your skill library</title>
+<desc id="desc">Promotional cover for the offline MIT Python tool. Context estimates, command conflicts and CI gates; no measured savings or live-routing claim.</desc>
+<defs>
+  <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#0b1220"/><stop offset="1" stop-color="#14263c"/></linearGradient>
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#b4e8dc" stroke-opacity=".035"/></pattern>
+</defs>
+<rect width="1200" height="630" fill="url(#bg)"/>
+<rect width="1200" height="630" fill="url(#grid)"/>
+<g fill="#89edbc"><rect x="80" y="64" width="10" height="30" rx="3"/><rect x="96" y="55" width="10" height="39" rx="3"/><rect x="112" y="46" width="10" height="48" rx="3"/></g>
+<text x="143" y="89" fill="#ecf5ff" font-family="Arial,sans-serif" font-size="38" font-weight="700">skillrot</text>
+<text x="80" y="180" fill="#f6f9ff" font-family="Arial,sans-serif" font-size="64" font-weight="700">Audit your skill library.</text>
+<text x="83" y="227" fill="#bdccdf" font-family="Arial,sans-serif" font-size="24">Context estimates. Command conflicts. CI gates.</text>
+<rect x="80" y="281" width="1040" height="211" rx="16" fill="#101b2c" stroke="#314158"/>
+<circle cx="110" cy="309" r="5" fill="#fb918c"/><circle cx="128" cy="309" r="5" fill="#f7d68b"/><circle cx="146" cy="309" r="5" fill="#89edbc"/>
+<text x="108" y="365" fill="#89edbc" font-family="Consolas,monospace" font-size="24">$</text>
+<text x="137" y="365" fill="#e3edf9" font-family="Consolas,monospace" font-size="24">skillrot ./skills --no-usage --json</text>
+<path d="M108 390H1091" stroke="#2e3f56"/>
+<g fill="#8eacca" font-family="Arial,sans-serif" font-size="17">
+  <text x="108" y="431">REQUESTED / RETAINED</text><text x="451" y="431">FRONTMATTER</text><text x="792" y="431">LOCAL EVIDENCE</text>
+</g>
+<g fill="#f3f7fd" font-family="Arial,sans-serif" font-size="23">
+  <text x="108" y="464">Explain the estimate</text><text x="451" y="464">Find actionable issues</text><text x="792" y="464">Keep counts in context</text>
+</g>
+<text x="83" y="552" fill="#89edbc" font-family="Arial,sans-serif" font-size="22">Offline · Python 3.9+ · Zero runtime dependencies · MIT</text>
+<text x="83" y="589" fill="#8eacca" font-family="Arial,sans-serif" font-size="18">github.com/Galactic717/skillrot</text>
+</svg>

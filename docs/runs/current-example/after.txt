@@ -1,0 +1,17 @@
+
+skillrot 0.4.0
+
+  Context bill (estimated Claude Code listing)
+    3 skills discovered
+    ~46 tokens in the always-on listing  (0.6% of a 8,000-token window)
+    ~80 tok listing budget (58% requested)
+    ~49 tokens of skill bodies waiting to load
+    464B on disk
+
+  Heaviest requested listings  (requested / estimated retained)
+       16 /    16 tok  /review
+       16 /    16 tok  /todo
+       14 /    14 tok  /notes
+
+  0 error(s), 0 warning(s)
+  Estimates use characters per token; this does not inspect a live session.

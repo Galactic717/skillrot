@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "version": "0.4.0",
+  "model": {
+    "harness": "claude-code",
+    "estimated": true,
+    "chars_per_token": 4.0,
+    "listing_char_cap": 1536,
+    "usage_available": false
+  },
+  "budget": {
+    "skills": 4,
+    "always_on_tokens": 6,
+    "requested_tokens": 339,
+    "name_tokens": 6,
+    "desc_tokens": 333,
+    "retained_desc_tokens": 0,
+    "listing_budget": 80,
+    "budget_percent": 423.75,
+    "overflows": true,
+    "commands": 0,
+    "hidden": 0,
+    "body_tokens": 74,
+    "bundle_bytes": 2214,
+    "context_window": 8000,
+    "context_percent": 0.07
+  },
+  "skills": [
+    {
+      "command": "review",
+      "kind": "skill",
+      "in_listing": true,
+      "override": null,
+      "path": "docs\\examples\\before\\review\\SKILL.md",
+      "origin": "scanned",
+      "plugin": null,
+      "listing_tokens": 113,
+      "retained_listing_tokens": 2,
+      "body_tokens": 16,
+      "body_lines": 2,
+      "invocations": null
+    },
+    {
+      "command": "notes",
+      "kind": "skill",
+      "in_listing": true,
+      "override": null,
+      "path": "docs\\examples\\before\\team-a\\notes\\SKILL.md",
+      "origin": "scanned",
+      "plugin": null,
+      "listing_tokens": 113,
+      "retained_listing_tokens": 2,
+      "body_tokens": 19,
+      "body_lines": 2,
+      "invocations": null
+    },
+    {
+      "command": "notes",
+      "kind": "skill",
+      "in_listing": true,
+      "override": null,
+      "path": "docs\\examples\\before\\team-b\\notes\\SKILL.md",
+      "origin": "scanned",
+      "plugin": null,
+      "listing_tokens": 113,
+      "retained_listing_tokens": 0,
+      "body_tokens": 22,
+      "body_lines": 2,
+      "invocations": null
+    },
+    {
+      "command": "todo",
+      "kind": "skill",
+      "in_listing": true,
+      "override": null,
+      "path": "docs\\examples\\before\\todo\\SKILL.md",
+      "origin": "scanned",
+      "plugin": null,
+      "listing_tokens": 113,
+      "retained_listing_tokens": 2,
+      "body_tokens": 17,
+      "body_lines": 2,
+      "invocations": null
+    }
+  ],
+  "findings": [
+    {
+      "rule": "SR020",
+      "severity": "warn",
+      "command": "notes",
+      "path": "docs\\examples\\before\\team-a\\notes\\SKILL.md",
+      "message": "2 skills answer to `/notes`; only one of them ever runs.",
+      "fix": "Rename or remove the duplicates: docs\\examples\\before\\team-b\\notes\\SKILL.md"
+    },
+    {
+      "rule": "SR021",
+      "severity": "warn",
+      "command": "notes",
+      "path": "docs\\examples\\before\\team-a\\notes\\SKILL.md",
+      "message": "4 skills form a description cluster linked by 80%+ word-overlap pairs: /notes, /notes, /review, /todo. Not every pair in the cluster necessarily meets the threshold. This overlap may make automatic selection ambiguous; it is a heuristic.",
+      "fix": "Differentiate the triggers, or merge them into one skill."
+    },
+    {
+      "rule": "SR030",
+      "severity": "info",
+      "command": "notes",
+      "path": "docs\\examples\\before\\team-a\\notes\\SKILL.md",
+      "message": "The estimated listing model drops this description at the configured budget. Its name remains available; actual session ordering can differ.",
+      "fix": "Disable unused plugins or local skills, shorten descriptions, or raise the listing budget with skillListingBudgetFraction / SLASH_COMMAND_TOOL_CHAR_BUDGET."
+    },
+    {
+      "rule": "SR030",
+      "severity": "info",
+      "command": "review",
+      "path": "docs\\examples\\before\\review\\SKILL.md",
+      "message": "The estimated listing model drops this description at the configured budget. Its name remains available; actual session ordering can differ.",
+      "fix": "Disable unused plugins or local skills, shorten descriptions, or raise the listing budget with skillListingBudgetFraction / SLASH_COMMAND_TOOL_CHAR_BUDGET."
+    },
+    {
+      "rule": "SR030",
+      "severity": "info",
+      "command": "todo",
+      "path": "docs\\examples\\before\\todo\\SKILL.md",
+      "message": "The estimated listing model drops this description at the configured budget. Its name remains available; actual session ordering can differ.",
+      "fix": "Disable unused plugins or local skills, shorten descriptions, or raise the listing budget with skillListingBudgetFraction / SLASH_COMMAND_TOOL_CHAR_BUDGET."
+    }
+  ]
+}

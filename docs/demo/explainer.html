@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>skillrot explainer</title>
+<title>skillrot — historical v0.3.0 explainer</title>
 <style>
   :root {
     --bg: #111110; --panel: #1a1a19; --line: #383835; --hair: #2a2a28;
@@ -93,19 +93,19 @@
 </head>
 <body>
 <div id="stage">
-  <div class="brand" id="brand">skillrot</div>
+  <div class="brand" id="brand">skillrot · historical v0.3.0 demo</div>
 
   <section id="s1">
-    <div class="h" id="h1a" style="top:330px">Every skill you install</div>
-    <div class="h" id="h1b" style="top:450px">is billed on <span style="color:var(--blue)">every message.</span></div>
-    <div class="sub" id="h1c" style="top:620px">Even the ones that never fire.</div>
+    <div class="h" id="h1a" style="top:330px">Your skill library has</div>
+    <div class="h" id="h1b" style="top:450px">a limited <span style="color:var(--blue)">listing budget.</span></div>
+    <div class="sub" id="h1c" style="top:620px">Estimate the pressure before adding more.</div>
   </section>
 
   <section id="s2">
-    <div class="title">Claude Code keeps a skill listing in context</div>
-    <div class="subtitle">Its budget is 1% of the context window. Names always stay. Descriptions fill what's left.</div>
+    <div class="title">Model Claude Code's skill listing</div>
+    <div class="subtitle">Default budget: 1% of window. Names stay; descriptions may be omitted.</div>
     <div id="listing">
-      <div class="cap"><span>skill listing · real ECC skills</span><span>most used ↓ least used</span></div>
+      <div class="cap"><span>example ECC skill names</span><span>illustrative priority</span></div>
       <div id="rows"></div>
     </div>
     <div id="gaugebox">
@@ -118,21 +118,21 @@
       <div class="legend"><span><i class="sw" style="background:var(--blue)"></i>names</span><span><i class="sw" style="background:var(--blue-soft)"></i>descriptions</span><span><i class="sw" style="background:var(--critical-soft);outline:2px solid var(--critical)"></i>over budget</span></div>
       <div class="stat" style="top:300px"><span>names in context</span><b id="st-names">0</b></div>
       <div class="stat" style="top:360px"><span>descriptions in context</span><b id="st-desc">0</b></div>
-      <div class="stat bad" style="top:420px"><span>name-only (unroutable)</span><b id="st-drop">0</b></div>
-      <div class="foot" id="s2foot">Past the budget, descriptions drop — least used first. The router can't match what it can't read.</div>
+      <div class="stat bad" style="top:420px"><span>name-only (estimated)</span><b id="st-drop">0</b></div>
+      <div class="foot" id="s2foot">When over budget, the model predicts fewer descriptions. Names remain available.</div>
     </div>
   </section>
 
   <section id="s3">
         <div id="term">
-      <div class="bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span>terminal · real run: affaan-m/ECC · live CI audit 2026-09-28</span></div>
+      <div class="bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span>historical output · affaan-m/ECC · v0.3.0 model · 2026-09-28</span></div>
       <pre id="tout"></pre>
     </div>
   </section>
 
   <section id="s4">
-    <div class="title">Public skill libraries, audited every week</div>
-    <div class="subtitle">Listing requested vs. its budget · 200k-token window · log scale</div>
+    <div class="title">Historical library audit · v0.3.0</div>
+    <div class="subtitle">Estimated requested listing/budget · 2026-09-28 · log scale</div>
     <div id="axis"></div>
     <div id="board"></div>
     <div class="src">github.com/Galactic717/skillrot · .github/workflows/live-audit.yml · run 2026-09-28</div>
@@ -140,9 +140,9 @@
 
   <section id="s5">
     <div class="word">skillrot</div>
-    <div class="tag">See what your skill library costs — and which skills your agent can't see.</div>
+    <div class="tag">Estimate listing pressure. Review conflicts. Audit locally.</div>
     <div class="chips"><span class="chip">one Python file</span><span class="chip">zero dependencies</span><span class="chip">deterministic</span><span class="chip">CI-ready</span></div>
-    <div class="cmd"><span class="p">$</span> curl -O https://raw.githubusercontent.com/Galactic717/skillrot/main/skillrot.py<br><span class="p">$</span> python skillrot.py</div>
+    <div class="cmd"><span class="p">$</span> git clone --branch v0.3.1 https://github.com/Galactic717/skillrot<br><span class="p">$</span> python skillrot/skillrot.py ./skills --no-usage</div>
     <div class="url">github.com/Galactic717/skillrot</div>
   </section>
 </div>

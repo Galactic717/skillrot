@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "captured_at_utc": "2026-10-13T17:42:52.395551+00:00",
+  "tool_version": "0.4.0",
+  "tool_base_commit": "c9a765889f246689fccd907a66c02a7d851267fa",
+  "tool_state": "release source snapshot; SHA256 inputs identify exact code",
+  "python": "3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)]",
+  "fixture_type": "controlled demonstration, not customer or runtime sample",
+  "assumptions": {
+    "harness": "claude-code",
+    "estimated": true,
+    "context_window": 8000,
+    "budget_fraction": 0.01,
+    "chars_per_token": 4,
+    "no_usage": true
+  },
+  "commands": [
+    [
+      "python",
+      "skillrot.py",
+      "docs/examples/before",
+      "--no-usage",
+      "--context-window",
+      "8000",
+      "--budget-fraction",
+      "0.01",
+      "--chars-per-token",
+      "4",
+      "--json"
+    ],
+    [
+      "python",
+      "skillrot.py",
+      "docs/examples/before",
+      "--no-usage",
+      "--context-window",
+      "8000",
+      "--budget-fraction",
+      "0.01",
+      "--chars-per-token",
+      "4",
+      "--no-color",
+      "--full"
+    ],
+    [
+      "python",
+      "skillrot.py",
+      "docs/examples/before",
+      "--no-usage",
+      "--context-window",
+      "8000",
+      "--budget-fraction",
+      "0.01",
+      "--chars-per-token",
+      "4",
+      "--svg",
+      "docs/assets/current-budget-before.svg"
+    ],
+    [
+      "python",
+      "skillrot.py",
+      "docs/examples/after",
+      "--no-usage",
+      "--context-window",
+      "8000",
+      "--budget-fraction",
+      "0.01",
+      "--chars-per-token",
+      "4",
+      "--json"
+    ],
+    [
+      "python",
+      "skillrot.py",
+      "docs/examples/after",
+      "--no-usage",
+      "--context-window",
+      "8000",
+      "--budget-fraction",
+      "0.01",
+      "--chars-per-token",
+      "4",
+      "--no-color",
+      "--full"
+    ],
+    [
+      "python",
+      "skillrot.py",
+      "docs/examples/after",
+      "--no-usage",
+      "--context-window",
+      "8000",
+      "--budget-fraction",
+      "0.01",
+      "--chars-per-token",
+      "4",
+      "--svg",
+      "docs/assets/current-budget-after.svg"
+    ]
+  ],
+  "inputs": {
+    "skillrot.py": "c73ec50a59708a1323fb32889de9dad3114d1093f76694688dd6eaad91fd842e",
+    "docs/examples/after/notes/SKILL.md": "3ff2364f9ac6c096303e493fdb1447cb6f45b3cd3c3e04eb5c8d8a907ba3b9c6",
+    "docs/examples/after/review/SKILL.md": "684c640d5876f412e3c6eeae3fd5b87b4b14f37283a045f01b0ad6bcdd79a92b",
+    "docs/examples/after/todo/SKILL.md": "d86289f1a211fd3216e95ceaf125ec381e6b356655dd529cda2a707315825124",
+    "docs/examples/before/review/SKILL.md": "9ecf714d0b6add976a9d9902982747c1b5fca596fefd013a2cde828587f3e702",
+    "docs/examples/before/team-a/notes/SKILL.md": "4c988ca7e16ad86a267223f4083da386ba8a300e59e0a63774e07b3cf06cff9e",
+    "docs/examples/before/team-b/notes/SKILL.md": "1b2023f72ff4943c63b39cadbabb04797512b92a74aa5152cd3292735c3f33aa",
+    "docs/examples/before/todo/SKILL.md": "c5444e5ebdeaad4146dbd43e82cae32aed7626486fecbdad61a09b2a38deeeb5"
+  },
+  "summary": {
+    "before": {
+      "entries": 4,
+      "requested_tokens": 339,
+      "retained_tokens": 6,
+      "budget": 80,
+      "overflow": true,
+      "findings": {
+        "SR020": 1,
+        "SR021": 1,
+        "SR030": 3
+      },
+      "gate_exit": 1
+    },
+    "after": {
+      "entries": 3,
+      "requested_tokens": 46,
+      "retained_tokens": 46,
+      "budget": 80,
+      "overflow": false,
+      "findings": {},
+      "gate_exit": 0
+    }
+  },
+  "working_directory": "repository root"
+}

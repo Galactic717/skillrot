@@ -1,0 +1,12 @@
+include SKILL.md LICENSE CHANGELOG.md CONTRIBUTING.md SECURITY.md
+include docs/RULES.md
+include docs/RELEASE.md
+recursive-include docs/examples *.md
+recursive-include docs/runs/current-example *.json *.txt *.svg
+include docs/assets/current-budget-*.svg
+recursive-include scripts *.py
+recursive-include marketplace *.md
+recursive-include tests *.py
+global-exclude *.py[cod]
+prune docs/assets
+prune docs/audit

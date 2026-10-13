@@ -7,6 +7,9 @@ on:
     - cron: "17 6 * * 1"   # Mondays 06:17 UTC
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -21,6 +24,8 @@ jobs:
           - ComposioHQ/awesome-claude-skills
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -28,14 +33,47 @@ jobs:
       - name: Clone the target library
         run: git clone --depth 1 "https://github.com/${{ matrix.repo }}" target
 
-      - name: Audit (never fails the job — this is a report)
+      - name: Audit and record reproducible inputs
+        shell: bash
+        env:
+          AUDIT_REPOSITORY: ${{ matrix.repo }}
         run: |
           slug="$(echo '${{ matrix.repo }}' | tr '/' '-')"
-          python skillrot.py target --no-usage --no-color --top 10 | tee "audit-$slug.txt"
-          python skillrot.py target --no-usage --json > "audit-$slug.json"
-          python skillrot.py target --no-usage --svg "audit-$slug.svg"
+          options=(target --no-usage --context-window 200000 --budget-fraction 0.01 --chars-per-token 4)
+          python skillrot.py "${options[@]}" --no-color --top 10 | tee "audit-$slug.txt"
+          python skillrot.py "${options[@]}" --json > "audit-$slug.json"
+          python skillrot.py "${options[@]}" --svg "audit-$slug.svg"
+          python - <<'PY'
+          import datetime
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          import skillrot
+
+          repository = os.environ["AUDIT_REPOSITORY"]
+          slug = repository.replace("/", "-")
+          base = ["python", "skillrot.py", "target", "--no-usage", "--context-window", "200000",
+                  "--budget-fraction", "0.01", "--chars-per-token", "4"]
+          provenance = {
+              "audited_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "target_url": "https://github.com/" + repository,
+              "target_sha": subprocess.check_output(["git", "-C", "target", "rev-parse", "HEAD"], text=True).strip(),
+              "tool_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+              "tool_version": skillrot.__version__,
+              "python_version": sys.version,
+              "workflow_run": os.environ["GITHUB_SERVER_URL"] + "/" + os.environ["GITHUB_REPOSITORY"]
+                              + "/actions/runs/" + os.environ["GITHUB_RUN_ID"],
+              "commands": [base + ["--no-color", "--top", "10"], base + ["--json"],
+                           base + ["--svg", "audit-" + slug + ".svg"]],
+          }
+          Path("audit-" + slug + ".provenance.json").write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
+          PY
           {
             echo "## ${{ matrix.repo }}"
+            echo "Target commit: $(git -C target rev-parse HEAD)"
+            echo "Tool commit: $(git rev-parse HEAD)"
             echo '```'
             sed -n '1,12p' "audit-$slug.txt"
             echo '```'
@@ -49,4 +87,5 @@ jobs:
             audit-*.txt
             audit-*.json
             audit-*.svg
-          if-no-files-found: warn
+          if-no-files-found: error
+          retention-days: 90

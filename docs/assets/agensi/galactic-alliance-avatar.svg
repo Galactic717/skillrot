@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Galactic Alliance</title>
+  <desc id="desc">A geometric GA monogram in mint with a restrained orbital motif on a deep navy background.</desc>
+  <defs>
+    <radialGradient id="bg" cx="32%" cy="24%" r="88%">
+      <stop stop-color="#1b344a"/>
+      <stop offset="1" stop-color="#0b1220"/>
+    </radialGradient>
+    <linearGradient id="mint" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#bdffdf"/>
+      <stop offset="1" stop-color="#69dba2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="120" fill="url(#bg)"/>
+  <circle cx="512" cy="512" r="397" fill="none" stroke="#9de9ce" stroke-opacity=".15" stroke-width="3"/>
+  <ellipse cx="512" cy="512" rx="415" ry="352" transform="rotate(-25 512 512)" fill="none" stroke="#9de9ce" stroke-opacity=".08" stroke-width="3"/>
+  <g fill="#caffeb">
+    <circle cx="273" cy="220" r="5"/>
+    <circle cx="759" cy="260" r="4" opacity=".65"/>
+    <circle cx="785" cy="734" r="5"/>
+    <circle cx="280" cy="803" r="3" opacity=".65"/>
+  </g>
+  <g fill="none" stroke="url(#mint)" stroke-width="53" stroke-linecap="square" stroke-linejoin="round">
+    <path d="M441 377H338C270 377 236 422 236 512S270 647 338 647H441V520H358"/>
+    <path d="M537 647L641 377L745 647M574 552H708"/>
+  </g>
+  <circle cx="810" cy="292" r="11" fill="#89edbc"/>
+</svg>
