@@ -287,6 +287,7 @@ Full YAML, live loader/router state, exact tokenization, partial history coverag
 +Незалежний reviewer додатково відтворив actual Windows self-junction resolution case на Python3.9; це підтверджує, що regression відповідає runtime boundary. Остаточна fresh source-suite перевірка:213 tests OK на actualPython3.9.25 і3.14.5, один POSIX control-filename case skipped на Windows;27 production-edge methods. mypy core, py_compile та diff-check OK. Version0.4.0 збережено; кінцеве ядро2064 physical lines, exact hash/source map нижче. Inventory і footprint fixes збережені, додаткових feature changes немає.
 +
 
+
 <!-- GENERATED_SOURCE_MAP_BEGIN -->
 
 ## Повна inventory функцій і класів
@@ -2482,7 +2483,7 @@ SHA-256 `8e8cc8c938c6fd6ce63aae2a6b98e0a23c344dac3d48b812857bb7645bbd3b84`; 173 
 | <code>CollisionBoundaryRegressionTests.test_unicode_duplicate_descriptions_are_detected</code> | 166–169 | <code>self.assertEqual(len(skillrot.cluster_by_description(skills)), 1)</code> |
 ### `tests/test_discovery_cli.py` — 42 methods
 
-SHA-256 `5e021e46a17c4cd107041037a1499764593fc12012752166d4dc2522f74952e8`; 495 physical lines.
+SHA-256 `70281d10d1cbfecdff3c74811bf8d2711715ea7e1b39da1735d9ab6b033f1f3e`; 506 physical lines.
 
 | Test | Рядки | Behavior assertions |
 | --- | --- | --- |
@@ -2512,22 +2513,22 @@ SHA-256 `5e021e46a17c4cd107041037a1499764593fc12012752166d4dc2522f74952e8`; 495 
 | <code>DiscoveryBoundaryTests.test_malformed_manifest_shapes_are_operational_errors</code> | 284–293 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('plugin.json', err)</code><br><code>self.assertEqual(out, '')</code> |
 | <code>DiscoveryBoundaryTests.test_invalid_manifest_json_is_not_a_recursive_scan</code> | 295–302 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('plugin.json', err)</code><br><code>self.assertEqual(out, '')</code> |
 | <code>DiscoveryBoundaryTests.test_direct_skill_audit_diagnoses_its_malformed_owning_manifest</code> | 304–311 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('plugin.json', err)</code><br><code>self.assertEqual(out, '')</code> |
-| <code>DiscoveryBoundaryTests.test_excessively_nested_manifest_json_is_an_operational_error</code> | 313–322 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('plugin.json', err)</code><br><code>self.assertEqual(out, '')</code> |
-| <code>OperationalCliTests.test_a_missing_input_among_valid_inputs_is_an_operational_failure</code> | 338–341 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('missing', err)</code> |
-| <code>OperationalCliTests.test_svg_write_failure_is_an_operational_failure</code> | 343–347 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('could not write', err)</code> |
-| <code>OperationalCliTests.test_invalid_numeric_options_are_rejected_before_audit</code> | 349–360 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn(flag, err)</code><br><code>self.assertEqual(out, '')</code> |
-| <code>OperationalCliTests.test_malformed_nested_settings_are_operational_failures</code> | 362–373 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('settings.json', err)</code><br><code>self.assertEqual(out, '')</code> |
-| <code>OperationalCliTests.test_malformed_plugin_registry_is_an_operational_failure</code> | 375–383 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('installed_plugins.json', err)</code><br><code>self.assertEqual(out, '')</code> |
-| <code>OperationalCliTests.test_distinct_scoped_plugin_roots_are_an_explicit_profile_limitation</code> | 385–398 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('p@m', err)</code><br><code>self.assertIn('explicit', err.lower())</code><br><code>self.assertEqual(out, '')</code> |
-| <code>OperationalCliTests.test_repeated_registry_records_for_one_physical_root_are_accepted</code> | 400–410 | <code>self.assertEqual(code, 0)</code><br><code>self.assertEqual([s['command'] for s in json.loads(out)['skills']], ['deploy', 'p:one'])</code> |
-| <code>OperationalCliTests.test_malformed_marketplace_registry_is_an_operational_failure</code> | 412–419 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('known_marketplaces.json', err)</code><br><code>self.assertEqual(out, '')</code> |
-| <code>OperationalCliTests.test_unresolved_enabled_plugin_does_not_report_a_clean_inventory</code> | 421–426 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('p@m', err)</code><br><code>self.assertEqual(out, '')</code> |
-| <code>OperationalCliTests.test_absent_enabled_plugins_does_not_inventory_disabled_cache</code> | 428–433 | <code>self.assertEqual(code, 0)</code><br><code>self.assertEqual([s['command'] for s in json.loads(out)['skills']], ['deploy'])</code> |
-| <code>OperationalCliTests.test_plugin_overrides_do_not_change_plugin_listing</code> | 435–446 | <code>self.assertEqual(code, 0)</code><br><code>self.assertTrue(item['in_listing'])</code><br><code>self.assertIsNone(item['override'])</code> |
-| <code>OperationalCliTests.test_no_transcript_evidence_does_not_claim_never_invoked</code> | 448–455 | <code>self.assertEqual(code, 0)</code><br><code>self.assertNotIn('SR024', [f['rule'] for f in payload['findings']])</code><br><code>self.assertIsNone(payload['skills'][0]['invocations'])</code> |
-| <code>OperationalCliTests.test_text_output_falls_back_safely_on_ascii_streams</code> | 457–468 | <code>self.assertEqual(code, 0)</code><br><code>self.assertIn('caf', out)</code> |
-| <code>OperationalCliTests.test_closed_output_pipe_does_not_print_a_traceback</code> | 470–480 | <code>self.assertEqual(process.wait(timeout=10), 0, stderr)</code><br><code>self.assertNotIn('Traceback', stderr)</code> |
-| <code>OperationalCliTests.test_help_and_version_handle_closed_output_pipes</code> | 482–491 | <code>self.assertEqual(process.wait(timeout=10), 0, stderr)</code> |
+| <code>DiscoveryBoundaryTests.test_manifest_json_parser_recursion_is_an_operational_error</code> | 313–333 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('plugin.json', err)</code><br><code>self.assertIn('could not read JSON', err)</code><br><code>self.assertIn('JSON decoder recursion exceeded', err)</code><br><code>self.assertEqual(out, '')</code><br><code>self.assertNotIn('Traceback', err)</code> |
+| <code>OperationalCliTests.test_a_missing_input_among_valid_inputs_is_an_operational_failure</code> | 349–352 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('missing', err)</code> |
+| <code>OperationalCliTests.test_svg_write_failure_is_an_operational_failure</code> | 354–358 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('could not write', err)</code> |
+| <code>OperationalCliTests.test_invalid_numeric_options_are_rejected_before_audit</code> | 360–371 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn(flag, err)</code><br><code>self.assertEqual(out, '')</code> |
+| <code>OperationalCliTests.test_malformed_nested_settings_are_operational_failures</code> | 373–384 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('settings.json', err)</code><br><code>self.assertEqual(out, '')</code> |
+| <code>OperationalCliTests.test_malformed_plugin_registry_is_an_operational_failure</code> | 386–394 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('installed_plugins.json', err)</code><br><code>self.assertEqual(out, '')</code> |
+| <code>OperationalCliTests.test_distinct_scoped_plugin_roots_are_an_explicit_profile_limitation</code> | 396–409 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('p@m', err)</code><br><code>self.assertIn('explicit', err.lower())</code><br><code>self.assertEqual(out, '')</code> |
+| <code>OperationalCliTests.test_repeated_registry_records_for_one_physical_root_are_accepted</code> | 411–421 | <code>self.assertEqual(code, 0)</code><br><code>self.assertEqual([s['command'] for s in json.loads(out)['skills']], ['deploy', 'p:one'])</code> |
+| <code>OperationalCliTests.test_malformed_marketplace_registry_is_an_operational_failure</code> | 423–430 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('known_marketplaces.json', err)</code><br><code>self.assertEqual(out, '')</code> |
+| <code>OperationalCliTests.test_unresolved_enabled_plugin_does_not_report_a_clean_inventory</code> | 432–437 | <code>self.assertEqual(code, 2)</code><br><code>self.assertIn('p@m', err)</code><br><code>self.assertEqual(out, '')</code> |
+| <code>OperationalCliTests.test_absent_enabled_plugins_does_not_inventory_disabled_cache</code> | 439–444 | <code>self.assertEqual(code, 0)</code><br><code>self.assertEqual([s['command'] for s in json.loads(out)['skills']], ['deploy'])</code> |
+| <code>OperationalCliTests.test_plugin_overrides_do_not_change_plugin_listing</code> | 446–457 | <code>self.assertEqual(code, 0)</code><br><code>self.assertTrue(item['in_listing'])</code><br><code>self.assertIsNone(item['override'])</code> |
+| <code>OperationalCliTests.test_no_transcript_evidence_does_not_claim_never_invoked</code> | 459–466 | <code>self.assertEqual(code, 0)</code><br><code>self.assertNotIn('SR024', [f['rule'] for f in payload['findings']])</code><br><code>self.assertIsNone(payload['skills'][0]['invocations'])</code> |
+| <code>OperationalCliTests.test_text_output_falls_back_safely_on_ascii_streams</code> | 468–479 | <code>self.assertEqual(code, 0)</code><br><code>self.assertIn('caf', out)</code> |
+| <code>OperationalCliTests.test_closed_output_pipe_does_not_print_a_traceback</code> | 481–491 | <code>self.assertEqual(process.wait(timeout=10), 0, stderr)</code><br><code>self.assertNotIn('Traceback', stderr)</code> |
+| <code>OperationalCliTests.test_help_and_version_handle_closed_output_pipes</code> | 493–502 | <code>self.assertEqual(process.wait(timeout=10), 0, stderr)</code> |
 ### `tests/test_frontmatter_hardening.py` — 35 methods
 
 SHA-256 `8676e9b6722e66898886f85bd7e55cbe703f1496ab1aaa83976923d62cc55919`; 242 physical lines.
@@ -2571,7 +2572,7 @@ SHA-256 `8676e9b6722e66898886f85bd7e55cbe703f1496ab1aaa83976923d62cc55919`; 242 
 | <code>FrontmatterHardeningTests.test_invalid_utf8_is_an_unreadable_file</code> | 233–238 | <code>self.assertIn('SR007', {f.rule for f in findings})</code> |
 ### `tests/test_production_edges.py` — 27 methods
 
-SHA-256 `bf549260a27210ca227ffc39b6ab2ae4c9be1a77592089f20940d7dba072e567`; 333 physical lines.
+SHA-256 `6fb56ad1837fa61328ccb556ac1e03e6ed4163f5c8913178c89055ec3802a2e6`; 351 physical lines.
 
 | Test | Рядки | Behavior assertions |
 | --- | --- | --- |
@@ -2588,20 +2589,20 @@ SHA-256 `bf549260a27210ca227ffc39b6ab2ae4c9be1a77592089f20940d7dba072e567`; 333 
 | <code>OperationalSourceBoundaryTests.test_c1_controls_cannot_escape_reports_or_diagnostics</code> | 117–129 | <code>self.assertEqual(code, 2)</code><br><code>self.assertNotIn(control, err)</code><br><code>self.assertNotIn(control, report)</code> |
 | <code>OperationalSourceBoundaryTests.test_argparse_errors_cannot_emit_terminal_controls</code> | 131–135 | <code>self.assertEqual(code, 2)</code><br><code>self.assertNotIn('\x1b', err)</code><br><code>self.assertNotIn('\x07', err)</code> |
 | <code>OperationalSourceBoundaryTests.test_svg_status_path_cannot_emit_terminal_controls</code> | 137–147 | <code>self.assertEqual(code, 0)</code><br><code>self.assertTrue(target.is_file())</code><br><code>self.assertNotIn('\x1b', err)</code><br><code>self.assertNotIn('\x07', err)</code> |
-| <code>OperationalSourceBoundaryTests.test_svg_status_is_safe_when_the_filesystem_accepts_a_control_path</code> | 149–157 | <code>self.assertEqual(code, 0)</code><br><code>self.assertNotIn('\x1b', err)</code><br><code>self.assertNotIn('\x07', err)</code> |
-| <code>OperationalSourceBoundaryTests.test_svg_cannot_overwrite_an_audited_skill</code> | 159–165 | <code>self.assertEqual(code, 2)</code><br><code>self.assertEqual(self.path.read_bytes(), original)</code><br><code>self.assertEqual(out, '')</code><br><code>self.assertIn('audited', err.lower())</code> |
-| <code>OperationalSourceBoundaryTests.test_svg_cannot_overwrite_a_hardlinked_audited_skill</code> | 167–176 | <code>self.assertEqual(code, 2)</code><br><code>self.assertEqual(self.path.read_bytes(), original)</code> |
-| <code>OperationalSourceBoundaryTests.test_recursive_inventory_failure_cannot_report_a_clean_partial_library</code> | 190–200 | <code>self.assertEqual(code, 2)</code><br><code>self.assertEqual(out, '')</code><br><code>self.assertIn('denied', err)</code> |
-| <code>OperationalSourceBoundaryTests.test_shallow_inventory_surfaces_denied_skill_directory</code> | 202–207 | <code>self.assertRaises(skillrot.AuditError)</code> |
-| <code>OperationalSourceBoundaryTests.test_plugin_skill_inventory_surfaces_denied_component_directory</code> | 209–224 | <code>self.assertEqual(code, 2)</code><br><code>self.assertEqual(out, '')</code><br><code>self.assertIn('denied', err)</code> |
-| <code>OperationalSourceBoundaryTests.test_plugin_command_inventory_surfaces_denied_nested_directory</code> | 226–239 | <code>self.assertEqual(code, 2)</code><br><code>self.assertEqual(out, '')</code><br><code>self.assertIn('denied', err)</code> |
-| <code>OperationalSourceBoundaryTests.test_local_command_inventory_surfaces_denied_nested_directory</code> | 241–248 | <code>self.assertRaises(skillrot.AuditError)</code> |
-| <code>OperationalSourceBoundaryTests.test_absent_optional_commands_directory_stays_empty</code> | 250–251 | <code>self.assertEqual(skillrot.command_entries(self.root / 'absent'), [])</code> |
-| <code>OperationalSourceBoundaryTests.test_recursive_inventory_does_not_follow_child_directory_links</code> | 264–278 | <code>self.assertEqual(code, 0)</code><br><code>self.assertEqual(len(json.loads(out)['skills']), 1)</code><br><code>self.assertEqual(code, 0)</code><br><code>self.assertEqual(len(json.loads(out)['skills']), 1)</code> |
-| <code>OperationalSourceBoundaryTests.test_recursive_directory_link_cycle_terminates_without_duplicate_inventory</code> | 280–290 | <code>self.assertEqual(result.returncode, 0, result.stderr)</code><br><code>self.assertEqual(len(json.loads(result.stdout)['skills']), 1)</code> |
-| <code>OperationalSourceBoundaryTests.test_bundle_footprint_does_not_count_directory_link_cycles</code> | 292–300 | <code>self.assertEqual(code, 0, err)</code><br><code>self.assertEqual(json.loads(out)['budget']['bundle_bytes'], expected)</code> |
-| <code>OperationalSourceBoundaryTests.test_bundle_footprint_excludes_files_behind_child_directory_links</code> | 302–309 | <code>self.assertEqual(code, 0, err)</code><br><code>self.assertEqual(json.loads(out)['budget']['bundle_bytes'], expected)</code> |
-| <code>OperationalSourceBoundaryTests.test_discovered_path_resolution_loop_is_an_operational_failure</code> | 311–329 | <code>self.assertEqual(code, 2)</code><br><code>self.assertEqual(out, '')</code><br><code>self.assertIn('resolve', err.lower())</code><br><code>self.assertNotIn('Traceback', err)</code> |
+| <code>OperationalSourceBoundaryTests.test_svg_status_is_safe_when_the_filesystem_accepts_a_control_path</code> | 149–175 | <code>self.assertEqual(code, 0)</code><br><code>self.assertTrue(resolved_target.is_file())</code><br><code>self.assertIn('wrote', err)</code><br><code>self.assertNotIn('\x1b', err)</code><br><code>self.assertNotIn('\x07', err)</code> |
+| <code>OperationalSourceBoundaryTests.test_svg_cannot_overwrite_an_audited_skill</code> | 177–183 | <code>self.assertEqual(code, 2)</code><br><code>self.assertEqual(self.path.read_bytes(), original)</code><br><code>self.assertEqual(out, '')</code><br><code>self.assertIn('audited', err.lower())</code> |
+| <code>OperationalSourceBoundaryTests.test_svg_cannot_overwrite_a_hardlinked_audited_skill</code> | 185–194 | <code>self.assertEqual(code, 2)</code><br><code>self.assertEqual(self.path.read_bytes(), original)</code> |
+| <code>OperationalSourceBoundaryTests.test_recursive_inventory_failure_cannot_report_a_clean_partial_library</code> | 208–218 | <code>self.assertEqual(code, 2)</code><br><code>self.assertEqual(out, '')</code><br><code>self.assertIn('denied', err)</code> |
+| <code>OperationalSourceBoundaryTests.test_shallow_inventory_surfaces_denied_skill_directory</code> | 220–225 | <code>self.assertRaises(skillrot.AuditError)</code> |
+| <code>OperationalSourceBoundaryTests.test_plugin_skill_inventory_surfaces_denied_component_directory</code> | 227–242 | <code>self.assertEqual(code, 2)</code><br><code>self.assertEqual(out, '')</code><br><code>self.assertIn('denied', err)</code> |
+| <code>OperationalSourceBoundaryTests.test_plugin_command_inventory_surfaces_denied_nested_directory</code> | 244–257 | <code>self.assertEqual(code, 2)</code><br><code>self.assertEqual(out, '')</code><br><code>self.assertIn('denied', err)</code> |
+| <code>OperationalSourceBoundaryTests.test_local_command_inventory_surfaces_denied_nested_directory</code> | 259–266 | <code>self.assertRaises(skillrot.AuditError)</code> |
+| <code>OperationalSourceBoundaryTests.test_absent_optional_commands_directory_stays_empty</code> | 268–269 | <code>self.assertEqual(skillrot.command_entries(self.root / 'absent'), [])</code> |
+| <code>OperationalSourceBoundaryTests.test_recursive_inventory_does_not_follow_child_directory_links</code> | 282–296 | <code>self.assertEqual(code, 0)</code><br><code>self.assertEqual(len(json.loads(out)['skills']), 1)</code><br><code>self.assertEqual(code, 0)</code><br><code>self.assertEqual(len(json.loads(out)['skills']), 1)</code> |
+| <code>OperationalSourceBoundaryTests.test_recursive_directory_link_cycle_terminates_without_duplicate_inventory</code> | 298–308 | <code>self.assertEqual(result.returncode, 0, result.stderr)</code><br><code>self.assertEqual(len(json.loads(result.stdout)['skills']), 1)</code> |
+| <code>OperationalSourceBoundaryTests.test_bundle_footprint_does_not_count_directory_link_cycles</code> | 310–318 | <code>self.assertEqual(code, 0, err)</code><br><code>self.assertEqual(json.loads(out)['budget']['bundle_bytes'], expected)</code> |
+| <code>OperationalSourceBoundaryTests.test_bundle_footprint_excludes_files_behind_child_directory_links</code> | 320–327 | <code>self.assertEqual(code, 0, err)</code><br><code>self.assertEqual(json.loads(out)['budget']['bundle_bytes'], expected)</code> |
+| <code>OperationalSourceBoundaryTests.test_discovered_path_resolution_loop_is_an_operational_failure</code> | 329–347 | <code>self.assertEqual(code, 2)</code><br><code>self.assertEqual(out, '')</code><br><code>self.assertIn('resolve', err.lower())</code><br><code>self.assertNotIn('Traceback', err)</code> |
 ### `tests/test_skill_bundle.py` — 7 methods
 
 SHA-256 `6add93e0cf993e7e94fcefd6f2f8bebb5ba89efbd4e9161dd811100da490f8cc`; 189 physical lines.

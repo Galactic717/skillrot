@@ -150,9 +150,27 @@ class OperationalSourceBoundaryTests(unittest.TestCase):
         # A narrow filesystem boundary double lets Windows exercise the same
         # status message without asking NTFS to create a forbidden filename.
         target = self.root / "chart\x1b]52;c;dGVzdA==\x07.svg"
-        with patch.object(Path, "write_text", return_value=0):
+        resolved_target = (self.root / "accepted-chart.svg").resolve()
+        actual_resolve, actual_exists, actual_write_text = Path.resolve, Path.exists, Path.write_text
+
+        def resolve(path, *args, **kwargs):
+            if path == target:
+                return resolved_target
+            return actual_resolve(path, *args, **kwargs)
+
+        def exists(path, *args, **kwargs):
+            return actual_exists(resolved_target if path == target else path, *args, **kwargs)
+
+        def write_text(path, *args, **kwargs):
+            return actual_write_text(resolved_target if path == target else path, *args, **kwargs)
+
+        with patch.object(Path, "resolve", resolve), \
+                patch.object(Path, "exists", exists), \
+                patch.object(Path, "write_text", write_text):
             code, _, err = self.cli([str(self.path), "--no-usage", "--svg", str(target)])
         self.assertEqual(code, 0)
+        self.assertTrue(resolved_target.is_file())
+        self.assertIn("wrote", err)
         self.assertNotIn("\x1b", err)
         self.assertNotIn("\x07", err)
 

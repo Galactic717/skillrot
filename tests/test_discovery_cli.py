@@ -310,16 +310,27 @@ class DiscoveryBoundaryTests(unittest.TestCase):
         self.assertIn("plugin.json", err)
         self.assertEqual(out, "")
 
-    def test_excessively_nested_manifest_json_is_an_operational_error(self):
+    def test_manifest_json_parser_recursion_is_an_operational_error(self):
         root = self.plugin({"name": "p"})
-        (root / ".claude-plugin" / "plugin.json").write_text(
-            '{"name":"p","nested":' + "[" * 100_000 + "0" + "]" * 100_000 + "}",
-            encoding="utf-8",
-        )
-        code, out, err = run_cli([str(root), "--no-usage", "--json"])
+        write_skill(root / "skills" / "deploy")
+        manifest_text = (root / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+        actual_loads = json.loads
+
+        def loads(text, *args, **kwargs):
+            # Decoder recursion limits vary by Python version. Force only this
+            # parser boundary; file reads, discovery and CLI handling stay real.
+            if text == manifest_text:
+                raise RecursionError("JSON decoder recursion exceeded")
+            return actual_loads(text, *args, **kwargs)
+
+        with patch.object(skillrot.json, "loads", side_effect=loads):
+            code, out, err = run_cli([str(root), "--no-usage", "--json"])
         self.assertEqual(code, 2)
         self.assertIn("plugin.json", err)
+        self.assertIn("could not read JSON", err)
+        self.assertIn("JSON decoder recursion exceeded", err)
         self.assertEqual(out, "")
+        self.assertNotIn("Traceback", err)
 
 
 class OperationalCliTests(unittest.TestCase):

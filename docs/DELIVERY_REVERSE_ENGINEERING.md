@@ -368,7 +368,7 @@ smoke coverage, coherent version та нове evidence-based presentation.
 | 18–25 | Допоміжний метод/fixture: `write_skill` |
 | 28–30 | Допоміжний метод/fixture: `write_json` |
 | 33–47 | Допоміжний метод/fixture: `run_cli` |
-| 50–322 | Клас unittest: `DiscoveryBoundaryTests` |
+| 50–333 | Клас unittest: `DiscoveryBoundaryTests` |
 | 51–53 | Допоміжний метод/fixture: `DiscoveryBoundaryTests.setUp` |
 | 55–56 | Допоміжний метод/fixture: `DiscoveryBoundaryTests.tearDown` |
 | 58–61 | Допоміжний метод/fixture: `DiscoveryBoundaryTests.plugin` |
@@ -398,27 +398,29 @@ smoke coverage, coherent version та нове evidence-based presentation.
 | 284–293 | Regression: `DiscoveryBoundaryTests.test_malformed_manifest_shapes_are_operational_errors` |
 | 295–302 | Regression: `DiscoveryBoundaryTests.test_invalid_manifest_json_is_not_a_recursive_scan` |
 | 304–311 | Regression: `DiscoveryBoundaryTests.test_direct_skill_audit_diagnoses_its_malformed_owning_manifest` |
-| 313–322 | Regression: `DiscoveryBoundaryTests.test_excessively_nested_manifest_json_is_an_operational_error` |
-| 325–491 | Клас unittest: `OperationalCliTests` |
-| 326–333 | Допоміжний метод/fixture: `OperationalCliTests.setUp` |
-| 335–336 | Допоміжний метод/fixture: `OperationalCliTests.tearDown` |
-| 338–341 | Regression: `OperationalCliTests.test_a_missing_input_among_valid_inputs_is_an_operational_failure` |
-| 343–347 | Regression: `OperationalCliTests.test_svg_write_failure_is_an_operational_failure` |
-| 349–360 | Regression: `OperationalCliTests.test_invalid_numeric_options_are_rejected_before_audit` |
-| 362–373 | Regression: `OperationalCliTests.test_malformed_nested_settings_are_operational_failures` |
-| 375–383 | Regression: `OperationalCliTests.test_malformed_plugin_registry_is_an_operational_failure` |
-| 385–398 | Regression: `OperationalCliTests.test_distinct_scoped_plugin_roots_are_an_explicit_profile_limitation` |
-| 400–410 | Regression: `OperationalCliTests.test_repeated_registry_records_for_one_physical_root_are_accepted` |
-| 412–419 | Regression: `OperationalCliTests.test_malformed_marketplace_registry_is_an_operational_failure` |
-| 421–426 | Regression: `OperationalCliTests.test_unresolved_enabled_plugin_does_not_report_a_clean_inventory` |
-| 428–433 | Regression: `OperationalCliTests.test_absent_enabled_plugins_does_not_inventory_disabled_cache` |
-| 435–446 | Regression: `OperationalCliTests.test_plugin_overrides_do_not_change_plugin_listing` |
-| 448–455 | Regression: `OperationalCliTests.test_no_transcript_evidence_does_not_claim_never_invoked` |
-| 457–468 | Regression: `OperationalCliTests.test_text_output_falls_back_safely_on_ascii_streams` |
-| 458–463 | Клас unittest: `OperationalCliTests.test_text_output_falls_back_safely_on_ascii_streams.AsciiStream` |
-| 461–463 | Допоміжний метод/fixture: `OperationalCliTests.test_text_output_falls_back_safely_on_ascii_streams.AsciiStream.write` |
-| 470–480 | Regression: `OperationalCliTests.test_closed_output_pipe_does_not_print_a_traceback` |
-| 482–491 | Regression: `OperationalCliTests.test_help_and_version_handle_closed_output_pipes` |
+| 313–333 | Regression: `DiscoveryBoundaryTests.test_manifest_json_parser_recursion_is_an_operational_error` |
+| 319–324 | Допоміжний метод/fixture: `DiscoveryBoundaryTests.test_manifest_json_parser_recursion_is_an_operational_error.loads` |
+| 336–502 | Клас unittest: `OperationalCliTests` |
+| 337–344 | Допоміжний метод/fixture: `OperationalCliTests.setUp` |
+| 346–347 | Допоміжний метод/fixture: `OperationalCliTests.tearDown` |
+| 349–352 | Regression: `OperationalCliTests.test_a_missing_input_among_valid_inputs_is_an_operational_failure` |
+| 354–358 | Regression: `OperationalCliTests.test_svg_write_failure_is_an_operational_failure` |
+| 360–371 | Regression: `OperationalCliTests.test_invalid_numeric_options_are_rejected_before_audit` |
+| 373–384 | Regression: `OperationalCliTests.test_malformed_nested_settings_are_operational_failures` |
+| 386–394 | Regression: `OperationalCliTests.test_malformed_plugin_registry_is_an_operational_failure` |
+| 396–409 | Regression: `OperationalCliTests.test_distinct_scoped_plugin_roots_are_an_explicit_profile_limitation` |
+| 411–421 | Regression: `OperationalCliTests.test_repeated_registry_records_for_one_physical_root_are_accepted` |
+| 423–430 | Regression: `OperationalCliTests.test_malformed_marketplace_registry_is_an_operational_failure` |
+| 432–437 | Regression: `OperationalCliTests.test_unresolved_enabled_plugin_does_not_report_a_clean_inventory` |
+| 439–444 | Regression: `OperationalCliTests.test_absent_enabled_plugins_does_not_inventory_disabled_cache` |
+| 446–457 | Regression: `OperationalCliTests.test_plugin_overrides_do_not_change_plugin_listing` |
+| 459–466 | Regression: `OperationalCliTests.test_no_transcript_evidence_does_not_claim_never_invoked` |
+| 468–479 | Regression: `OperationalCliTests.test_text_output_falls_back_safely_on_ascii_streams` |
+| 469–474 | Клас unittest: `OperationalCliTests.test_text_output_falls_back_safely_on_ascii_streams.AsciiStream` |
+| 472–474 | Допоміжний метод/fixture: `OperationalCliTests.test_text_output_falls_back_safely_on_ascii_streams.AsciiStream.write` |
+| 481–491 | Regression: `OperationalCliTests.test_closed_output_pipe_does_not_print_a_traceback` |
+| 493–502 | Regression: `OperationalCliTests.test_help_and_version_handle_closed_output_pipes` |
+| 505–506 | Module entry point |
 
 ### tests/test_frontmatter_hardening.py
 
@@ -476,7 +478,7 @@ smoke coverage, coherent version та нове evidence-based presentation.
 | 47–52 | Regression: `TypedFrontmatterEdgeTests.test_quoted_boolean_and_null_metadata_keys_remain_strings` |
 | 54–59 | Regression: `TypedFrontmatterEdgeTests.test_boolean_collections_are_flagged_and_do_not_hide_the_skill` |
 | 61–67 | Regression: `TypedFrontmatterEdgeTests.test_folded_keep_chomping_preserves_trailing_blank_lines` |
-| 70–329 | Клас unittest: `OperationalSourceBoundaryTests` |
+| 70–347 | Клас unittest: `OperationalSourceBoundaryTests` |
 | 71–77 | Допоміжний метод/fixture: `OperationalSourceBoundaryTests.setUp` |
 | 79–80 | Допоміжний метод/fixture: `OperationalSourceBoundaryTests.tearDown` |
 | 82–90 | Допоміжний метод/fixture: `OperationalSourceBoundaryTests.cli` |
@@ -487,25 +489,28 @@ smoke coverage, coherent version та нове evidence-based presentation.
 | 117–129 | Regression: `OperationalSourceBoundaryTests.test_c1_controls_cannot_escape_reports_or_diagnostics` |
 | 131–135 | Regression: `OperationalSourceBoundaryTests.test_argparse_errors_cannot_emit_terminal_controls` |
 | 137–147 | Regression: `OperationalSourceBoundaryTests.test_svg_status_path_cannot_emit_terminal_controls` |
-| 149–157 | Regression: `OperationalSourceBoundaryTests.test_svg_status_is_safe_when_the_filesystem_accepts_a_control_path` |
-| 159–165 | Regression: `OperationalSourceBoundaryTests.test_svg_cannot_overwrite_an_audited_skill` |
-| 167–176 | Regression: `OperationalSourceBoundaryTests.test_svg_cannot_overwrite_a_hardlinked_audited_skill` |
-| 178–188 | Допоміжний метод/fixture: `OperationalSourceBoundaryTests.deny_scandir` |
-| 183–186 | Допоміжний метод/fixture: `OperationalSourceBoundaryTests.deny_scandir.guarded` |
-| 190–200 | Regression: `OperationalSourceBoundaryTests.test_recursive_inventory_failure_cannot_report_a_clean_partial_library` |
-| 202–207 | Regression: `OperationalSourceBoundaryTests.test_shallow_inventory_surfaces_denied_skill_directory` |
-| 209–224 | Regression: `OperationalSourceBoundaryTests.test_plugin_skill_inventory_surfaces_denied_component_directory` |
-| 226–239 | Regression: `OperationalSourceBoundaryTests.test_plugin_command_inventory_surfaces_denied_nested_directory` |
-| 241–248 | Regression: `OperationalSourceBoundaryTests.test_local_command_inventory_surfaces_denied_nested_directory` |
-| 250–251 | Regression: `OperationalSourceBoundaryTests.test_absent_optional_commands_directory_stays_empty` |
-| 253–262 | Допоміжний метод/fixture: `OperationalSourceBoundaryTests.directory_link` |
-| 264–278 | Regression: `OperationalSourceBoundaryTests.test_recursive_inventory_does_not_follow_child_directory_links` |
-| 280–290 | Regression: `OperationalSourceBoundaryTests.test_recursive_directory_link_cycle_terminates_without_duplicate_inventory` |
-| 292–300 | Regression: `OperationalSourceBoundaryTests.test_bundle_footprint_does_not_count_directory_link_cycles` |
-| 302–309 | Regression: `OperationalSourceBoundaryTests.test_bundle_footprint_excludes_files_behind_child_directory_links` |
-| 311–329 | Regression: `OperationalSourceBoundaryTests.test_discovered_path_resolution_loop_is_an_operational_failure` |
-| 314–319 | Допоміжний метод/fixture: `OperationalSourceBoundaryTests.test_discovered_path_resolution_loop_is_an_operational_failure.resolve` |
-| 332–333 | Module entry point: unittest.main() |
+| 149–175 | Regression: `OperationalSourceBoundaryTests.test_svg_status_is_safe_when_the_filesystem_accepts_a_control_path` |
+| 156–159 | Допоміжний метод/fixture: `OperationalSourceBoundaryTests.test_svg_status_is_safe_when_the_filesystem_accepts_a_control_path.resolve` |
+| 161–162 | Допоміжний метод/fixture: `OperationalSourceBoundaryTests.test_svg_status_is_safe_when_the_filesystem_accepts_a_control_path.exists` |
+| 164–165 | Допоміжний метод/fixture: `OperationalSourceBoundaryTests.test_svg_status_is_safe_when_the_filesystem_accepts_a_control_path.write_text` |
+| 177–183 | Regression: `OperationalSourceBoundaryTests.test_svg_cannot_overwrite_an_audited_skill` |
+| 185–194 | Regression: `OperationalSourceBoundaryTests.test_svg_cannot_overwrite_a_hardlinked_audited_skill` |
+| 196–206 | Допоміжний метод/fixture: `OperationalSourceBoundaryTests.deny_scandir` |
+| 201–204 | Допоміжний метод/fixture: `OperationalSourceBoundaryTests.deny_scandir.guarded` |
+| 208–218 | Regression: `OperationalSourceBoundaryTests.test_recursive_inventory_failure_cannot_report_a_clean_partial_library` |
+| 220–225 | Regression: `OperationalSourceBoundaryTests.test_shallow_inventory_surfaces_denied_skill_directory` |
+| 227–242 | Regression: `OperationalSourceBoundaryTests.test_plugin_skill_inventory_surfaces_denied_component_directory` |
+| 244–257 | Regression: `OperationalSourceBoundaryTests.test_plugin_command_inventory_surfaces_denied_nested_directory` |
+| 259–266 | Regression: `OperationalSourceBoundaryTests.test_local_command_inventory_surfaces_denied_nested_directory` |
+| 268–269 | Regression: `OperationalSourceBoundaryTests.test_absent_optional_commands_directory_stays_empty` |
+| 271–280 | Допоміжний метод/fixture: `OperationalSourceBoundaryTests.directory_link` |
+| 282–296 | Regression: `OperationalSourceBoundaryTests.test_recursive_inventory_does_not_follow_child_directory_links` |
+| 298–308 | Regression: `OperationalSourceBoundaryTests.test_recursive_directory_link_cycle_terminates_without_duplicate_inventory` |
+| 310–318 | Regression: `OperationalSourceBoundaryTests.test_bundle_footprint_does_not_count_directory_link_cycles` |
+| 320–327 | Regression: `OperationalSourceBoundaryTests.test_bundle_footprint_excludes_files_behind_child_directory_links` |
+| 329–347 | Regression: `OperationalSourceBoundaryTests.test_discovered_path_resolution_loop_is_an_operational_failure` |
+| 332–337 | Допоміжний метод/fixture: `OperationalSourceBoundaryTests.test_discovered_path_resolution_loop_is_an_operational_failure.resolve` |
+| 350–351 | Module entry point |
 
 ### tests/test_skill_bundle.py
 
@@ -902,3 +907,12 @@ The public release manifest additionally includes the release guide and controll
 examples/reports/charts in the sdist. These four additive manifest lines do not
 change runtime behavior or the frozen CLI hash. Account screenshots, local preflight
 notes and private planning records are excluded from the public commit.
+
+
+## CI portability verification
+
+The public matrix exposed two runtime-dependent test assumptions. The JSON
+regression forces RecursionError only at the decoder boundary; a valid unused
+deep JSON field is not required to fail parsing. The terminal-status fixture models
+only its target filesystem consistently, including resolve/exists/write. Production
+file protection, real filename/link tests and frozen CLI bytes are unchanged.
