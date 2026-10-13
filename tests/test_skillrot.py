@@ -276,7 +276,7 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_frontmatter_name_sets_the_plugin_command_leaf(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp) / "plugins" / "myplug"
+            root = Path(tmp) / "plugins" / "cache" / "market" / "myplug" / "1.0.0"
             text = GOOD.replace("name: deploy", "name: fancy")
             write_skill(root / "skills", "review", text)
             skills = skillrot.discover([Path(tmp)])
@@ -585,14 +585,14 @@ class ManifestDiscoveryTests(unittest.TestCase):
             write_skill(root / ".gemini" / "skills", "one", GOOD)
             self.assertEqual([s.command for s in skillrot.discover([root])], ["a:one"])
 
-    def test_remote_only_marketplace_falls_back_to_recursive_scan(self):
+    def test_remote_only_marketplace_does_not_count_local_catalog(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / ".claude-plugin").mkdir()
             (root / ".claude-plugin" / "marketplace.json").write_text(json.dumps(
                 {"plugins": [{"name": "a", "source": {"source": "github"}}]}), encoding="utf-8")
             write_skill(root / "catalog", "one", GOOD)
-            self.assertEqual(len(skillrot.discover([root])), 1)
+            self.assertEqual(len(skillrot.discover([root])), 0)
 
     def test_plugin_root_skill_md_loads_as_single_skill(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -707,8 +707,8 @@ class InstalledPluginTests(unittest.TestCase):
             skills = skillrot.discover([], extra=entries)
             self.assertEqual(sorted(s.command for s in skills), ["cached:a", "local:b"])
 
-    def test_no_enabled_plugins_means_fall_back(self):
-        self.assertIsNone(skillrot.installed_plugin_entries(Path("/nowhere"), {}))
+    def test_no_enabled_plugins_does_not_scan_disabled_cache(self):
+        self.assertEqual(skillrot.installed_plugin_entries(Path("/nowhere"), {}), [])
 
     def test_settings_merge_project_over_user(self):
         with tempfile.TemporaryDirectory() as tmp:

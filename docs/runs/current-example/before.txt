@@ -1,0 +1,39 @@
+
+skillrot 0.4.0
+
+  Context bill (estimated Claude Code listing)
+    4 skills discovered
+    ~6 tokens in the always-on listing  (0.1% of a 8,000-token window)
+    ~80 tok listing budget (424% requested)
+    over budget by ~259 tok: the model predicts description drops
+    ~74 tokens of skill bodies waiting to load
+    2.2KB on disk
+
+  Heaviest requested listings  (requested / estimated retained)
+      113 /     2 tok  /review
+      113 /     2 tok  /notes
+      113 /     2 tok  /todo
+
+  Findings
+
+  WARN
+    SR020 /notes
+      2 skills answer to `/notes`; only one of them ever runs.
+      fix: Rename or remove the duplicates: docs\examples\before\team-b\notes\SKILL.md
+    SR021 /notes
+      4 skills form a description cluster linked by 80%+ word-overlap pairs: /notes, /notes, /review, /todo. Not every pair in the cluster necessarily meets the threshold. This overlap may make automatic selection ambiguous; it is a heuristic.
+      fix: Differentiate the triggers, or merge them into one skill.
+
+  INFO
+    SR030 /notes
+      The estimated listing model drops this description at the configured budget. Its name remains available; actual session ordering can differ.
+      fix: Disable unused plugins or local skills, shorten descriptions, or raise the listing budget with skillListingBudgetFraction / SLASH_COMMAND_TOOL_CHAR_BUDGET.
+    SR030 /review
+      The estimated listing model drops this description at the configured budget. Its name remains available; actual session ordering can differ.
+      fix: Disable unused plugins or local skills, shorten descriptions, or raise the listing budget with skillListingBudgetFraction / SLASH_COMMAND_TOOL_CHAR_BUDGET.
+    SR030 /todo
+      The estimated listing model drops this description at the configured budget. Its name remains available; actual session ordering can differ.
+      fix: Disable unused plugins or local skills, shorten descriptions, or raise the listing budget with skillListingBudgetFraction / SLASH_COMMAND_TOOL_CHAR_BUDGET.
+
+  0 error(s), 2 warning(s), 3 predicted name-only
+  Estimates use characters per token; this does not inspect a live session.

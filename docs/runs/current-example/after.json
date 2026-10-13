@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "version": "0.4.0",
+  "model": {
+    "harness": "claude-code",
+    "estimated": true,
+    "chars_per_token": 4.0,
+    "listing_char_cap": 1536,
+    "usage_available": false
+  },
+  "budget": {
+    "skills": 3,
+    "always_on_tokens": 46,
+    "requested_tokens": 46,
+    "name_tokens": 6,
+    "desc_tokens": 40,
+    "retained_desc_tokens": 40,
+    "listing_budget": 80,
+    "budget_percent": 57.5,
+    "overflows": false,
+    "commands": 0,
+    "hidden": 0,
+    "body_tokens": 49,
+    "bundle_bytes": 464,
+    "context_window": 8000,
+    "context_percent": 0.57
+  },
+  "skills": [
+    {
+      "command": "notes",
+      "kind": "skill",
+      "in_listing": true,
+      "override": null,
+      "path": "docs\\examples\\after\\notes\\SKILL.md",
+      "origin": "scanned",
+      "plugin": null,
+      "listing_tokens": 14,
+      "retained_listing_tokens": 14,
+      "body_tokens": 16,
+      "body_lines": 2,
+      "invocations": null
+    },
+    {
+      "command": "review",
+      "kind": "skill",
+      "in_listing": true,
+      "override": null,
+      "path": "docs\\examples\\after\\review\\SKILL.md",
+      "origin": "scanned",
+      "plugin": null,
+      "listing_tokens": 16,
+      "retained_listing_tokens": 16,
+      "body_tokens": 16,
+      "body_lines": 2,
+      "invocations": null
+    },
+    {
+      "command": "todo",
+      "kind": "skill",
+      "in_listing": true,
+      "override": null,
+      "path": "docs\\examples\\after\\todo\\SKILL.md",
+      "origin": "scanned",
+      "plugin": null,
+      "listing_tokens": 16,
+      "retained_listing_tokens": 16,
+      "body_tokens": 17,
+      "body_lines": 2,
+      "invocations": null
+    }
+  ],
+  "findings": []
+}

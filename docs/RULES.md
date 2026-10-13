@@ -1,182 +1,168 @@
 # Rules
 
-Every rule exists because of documented behaviour, not taste. Each entry below says what
-the rule catches, why it matters, and where the behaviour is specified.
+Rules combine documented host/specification constraints with review heuristics. A finding
+is evidence for the check described below; it is not a measurement of a live model's
+routing or proof that every host will reject a file.
 
-Sources:
+References checked on 2026-10-08:
 
-- **CC** — Claude Code skills reference, <https://code.claude.com/docs/en/skills>
-- **AS** — Agent Skills open standard, <https://agentskills.io>
+- [Claude Code skills reference](https://code.claude.com/docs/en/skills) — Claude-specific
+  fields, invocation controls and listing behavior.
+- [Agent Skills specification](https://agentskills.io/specification) — portable field
+  requirements, types, limits and recommended body structure.
 
----
+The parser supports a bounded YAML subset. SR009 distinguishes unsupported input from a
+successful parse. A valid construct outside that subset needs a full YAML/host validator.
 
-## Errors
+## Frontmatter and input
 
-### SR001 — frontmatter missing or not on line 1
+### SR001 — frontmatter missing or not on line 1 · error
 
-> Claude Code reads the frontmatter only when the opening `---` is the file's first line.
-> Otherwise it treats the whole file, `---` markers included, as skill content. — CC
+The audit requires opening `---` on the first line. This makes metadata explicit and
+avoids interpreting a body as intended frontmatter. A host may fall back to body text;
+this finding does not establish that the skill is impossible to invoke.
 
-A single blank line or a stray comment above the `---` turns a working skill into a
-description-less blob. It still loads, still costs context, and never fires. This is the
-most expensive one-character mistake in the format.
+### SR002 — missing or empty description · warn; portable error
 
-### SR002 — no `description`
+Claude Code can use the first non-empty body line when `description` is omitted. A warning
+prompts you to supply deliberate routing text. The Agent Skills specification requires a
+non-empty description, so `--portable` raises the same finding to an error.
 
-> If omitted, uses the first paragraph of markdown content. — CC
+### SR003 — listing text beyond the modeled entry cap · error
 
-The fallback is rarely written to be routed on. Whatever your first paragraph happens to
-say becomes the trigger text.
+The Claude Code reference documents truncation of combined `description` and
+`when_to_use` listing text at 1,536 characters. Place useful trigger text before that
+cutoff. This is separate from the portable 1,024-character description limit in SR014.
 
-### SR003 — listing text past the cap
+### SR004 — both invocation controls disabled · error
 
-> The combined `description` and `when_to_use` text is truncated at 1,536 characters in
-> the skill listing to reduce context usage. — CC
+Combining `disable-model-invocation: true` with `user-invocable: false` disables the
+normal automatic and direct user invocation paths. Review whether one of those paths
+should remain available. Disabled automatic invocation also keeps the description out
+of the modeled listing; this is not a claim that a disabled skill costs listing tokens.
 
-Text past the cutoff never reaches the router. If your trigger phrasing is at the end of a
-long description, it does not exist as far as skill selection is concerned. Put the
-trigger first.
+### SR005 — invalid boolean field · warn
 
-### SR004 — unreachable skill
+The invocation fields need boolean values. The parser recognizes the supported boolean
+spellings; other values do not express a reliable enabled/disabled intent. Prefer
+`true` and `false` for clarity.
 
-> `disable-model-invocation`: Set to `true` to prevent Claude from automatically loading
-> this skill. — CC
->
-> `user-invocable`: Set to `false` when only Claude should invoke the skill: Claude Code
-> hides it from the `/` menu and doesn't run it when you type `/name`. — CC
+### SR006 — unterminated frontmatter · error
 
-Set both and nothing can run the skill: the model is blocked from auto-loading it and you
-are blocked from typing it. It is a file that only costs context.
+The opening delimiter has no closing `---`. Repair the block before relying on any
+metadata analysis.
 
-### SR006 — unterminated frontmatter
+### SR007 — unreadable skill · error
 
-An opening `---` with no closing `---`. The parser has no frontmatter block to read.
+The file could not be read, for example due to permissions or encoding. The finding
+reports the unavailable input instead of silently omitting its content.
 
-### SR007 — unreadable file
+### SR008 — possible symlink checkout stub · error
 
-Permissions or encoding. Reported rather than crashing the run.
+A path-only file can be the text representation of a Git symlink checked out without
+symlink support. The heuristic distinguishes it from ordinary missing frontmatter.
+Verify the Git entry and target; if it is a symlink, restore or re-clone with symlinks
+supported. A path-only body is not definitive proof of a checkout problem.
 
-### SR008 — symlink checked out as a plain file
+### SR009 — invalid or unsupported YAML subset · error
 
-Repositories that share skills between directories with git symlinks check out as
-one-line text files containing a relative path on systems without symlink support —
-Windows, most commonly. The file exists, the skill does not. Distinguished from SR001
-because the fix is different: re-clone with symlinks enabled.
+The parser cannot safely interpret the frontmatter. Causes include invalid syntax,
+duplicate keys, and constructs outside the supported scalar/list/map subset. Do not use
+partially parsed fields as proof of validity or estimated listing cost. Simplify the
+frontmatter or use a full YAML parser and the target host's validator. This rule can
+report valid YAML that the target host supports.
 
-### SR010 — non-spec frontmatter field (`--portable` only)
+## Portable checks (`--portable`)
 
-> If you include any field the spec doesn't allow, packaging or upload fails with a hard
-> error instead of ignoring the field. — CC
+### SR010 — unsupported top-level field · error
 
-The claude.ai upload path, the Skills API and `package_skill.py` accept exactly six
-fields: `name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`.
-Claude Code accepts many more, so a skill can work perfectly on your machine and fail the
-moment you try to share it. Off by default, since Claude Code-only skills are legitimate.
+The Agent Skills specification defines `name`, `description`, `license`, `compatibility`,
+`metadata` and `allowed-tools`. Other top-level fields fail this portable check, including
+quoted keys. Claude-specific invocation controls remain legitimate in a Claude-only
+skill; move custom authoring data under `metadata` when portability matters.
 
----
+### SR011 — compatibility exceeds 500 characters · error
 
-## Warnings
+The optional `compatibility` scalar has a 500-character limit in the Agent Skills
+specification. Keep environment requirements concise.
 
-### SR005 — non-boolean value in a boolean field
+### SR013 — invalid portable name · error
 
-> Boolean fields accept `yes`, `no`, `on`, `off`, `1`, and `0` in any letter case, in
-> addition to `true` and `false`. — CC
+A portable `name` is required, is 1–64 characters, uses lowercase letters/digits and
+hyphens, has no leading/trailing/consecutive hyphens, and matches the containing skill
+directory. This is a publishing constraint, not a requirement to rename every
+Claude-specific command.
 
-Anything outside that set is not a boolean, and the field does not do what you think.
+### SR014 — field type or limit violation · error
 
-### SR011 — `compatibility` over 500 characters (`--portable` only)
+The core `name`, `description` and `when_to_use` fields must be strings in both audit
+modes. With `--portable`, `license`, `compatibility` and `allowed-tools` also require
+scalar strings. The required description must be non-empty and at most 1,024 characters;
+provided compatibility text must be non-empty. `metadata` is a map with string values.
+Claude-specific list forms may be valid for the host while failing portable constraints.
 
-> Accepts a string of up to 500 characters. — CC / AS
+These checks cover supported frontmatter requirements. They do not validate complete
+upload archives, referenced resources, every YAML construct, or runtime behavior. Passing
+`--portable` should be followed by the intended host's validation.
 
-### SR020 — two skills, one command
+## Library review
 
-> With a `deploy` skill in both `~/.claude/skills/` and your project's `.claude/skills/`,
-> `/deploy` runs the personal one. — CC
+### SR012 — unrecognized top-level field · info
 
-Shadowing is defined and deterministic, which is exactly why it is easy to miss: the
-skill you meant to run is simply never the one that runs.
+A field outside the supported Claude/specification set can be a typo or custom metadata.
+Inspect it and place custom values under `metadata` when appropriate.
 
-### SR021 — near-identical descriptions
+### SR020 — conflicting command names · warn
 
-The router picks a skill by comparing your request to description text. Two skills
-describing the same job in the same words make that a coin flip. Install several
-marketplace bundles and this happens on its own, without anyone deciding it should.
+Multiple entries resolve to the same command. Claude Code documents precedence between
+personal, project and plugin skills. The audit reports the conflict so you can confirm
+which entry should win; it does not know which duplicate you intended to invoke.
 
-skillrot groups the whole overlapping set into one finding rather than reporting every
-pair, and compares only skills that share discriminating words, so a 4,500-skill library
-still finishes in seconds. Tune the threshold with `--similarity`.
+### SR021 — similar descriptions · warn
 
-### SR022 — description without a trigger
+A lexical overlap heuristic groups descriptions that may need clearer distinctions.
+Similar descriptions do not prove random routing or an invocation failure. Review each
+entry's scope and sharpen its trigger if necessary. `--similarity` sets the threshold.
+Exact non-empty word sets are preserved at any collection size. Candidate pruning
+can miss non-identical pairs whose overlap consists only of very common words; a
+clean result is not proof that every description has a distinct purpose.
 
-> `description`: What the skill does **and when to use it**. Claude uses this to decide
-> when to apply the skill. — CC
+### SR022 — trigger language absent · warn
 
-"A tool for formatting tables" tells the router what the skill is. It does not tell it
-when to reach for one. The heuristic looks for trigger language ("use when", "when the
-user", and similar); it is a lint, not a proof, and a description can be well-targeted
-without those exact words.
+Descriptions should communicate both the task and when it applies. The heuristic looks
+for phrases such as “use when”; a useful description can express its trigger differently.
+Treat the finding as a writing review prompt.
 
-### SR023 — oversized body
+### SR023 — body over the line threshold · warn
 
-> Once a skill loads, its content stays in context across turns, so every line is a
-> recurring token cost. — CC
+A large body can cost more context when loaded. The default threshold is 500 non-blank lines,
+consistent with the specification's progressive-disclosure guidance. Use supporting
+files for material needed only on demand, or adjust `--body-lines` to your workflow.
+This does not measure how long the body remains in a session after compaction.
 
-A 600-line skill that fires once early in a session is charged to every turn afterwards.
-Supporting files the skill reads on demand cost nothing until they are read.
+### SR024 — no observed invocation · info
 
-### SR025 — description too thin
+The audit scans available Claude JSONL transcripts for recognized `Skill` tool calls and
+user-typed commands. Zero observations can mean a recent install, missing/incomplete
+history, a format the scanner does not recognize, or no use. It is not proof the skill is
+useless. Reads stay local; `--no-usage` disables them. When no usable invocation evidence
+is available, JSON reports null invocations and SR024 is not emitted.
 
-Under 15 characters cannot carry both what a skill does and when to use it.
+### SR025 — description under 15 characters · warn
 
----
+Very short descriptions rarely provide enough task and trigger information. This is a
+length heuristic, not a host/specification minimum or proof that routing cannot work.
 
-## Info
+### SR030 — modeled name-only entry · info
 
-### SR012 — unrecognized frontmatter field
+The Claude Code reference documents a listing budget defaulting to 1% of the context
+window, with names retained and less-used descriptions omitted when it overflows.
+skillrot estimates a retained listing under those assumptions. It excludes automatically
+hidden entries, honors supported overrides, deduplicates command names, and accounts for
+commands sharing the listing. `name-only` overrides also retain only a name.
 
-> `metadata`: Free-form YAML map for your own key-value data ... Don't reuse frontmatter
-> field names such as `paths` as keys. — CC
-
-Custom top-level keys like `tags:` or `author:` are not part of either the Claude Code
-set or the spec. They are usually harmless, sometimes a typo of a real field, and belong
-under `metadata:`.
-
-### SR024 — never invoked
-
-Counted from `"name":"Skill"` tool calls in local Claude Code transcripts under
-`~/.claude/projects/`. Evidence of absence in *your* history, not proof a skill is
-useless: a skill installed yesterday has not fired yet either. Read it alongside the
-listing cost — a cheap skill that never fires is fine, an expensive one is rent.
-
-Transcripts are read locally and never leave the machine. Turn the scan off with
-`--no-usage`.
-
-### SR030 — listed name-only (description dropped from the budget)
-
-> Claude Code loads a listing of skill names and descriptions into context... The
-> listing always contains every skill name, but if you have many skills, Claude Code
-> drops some descriptions to fit the listing's character budget... The budget scales at
-> 1% of the model's context window. When the listing overflows, Claude Code drops
-> descriptions starting with the skills you invoke least. — CC
-
-This is the failure that bites big libraries: not that a single skill is malformed, but
-that the *collection* overflows the listing budget, so Claude Code lists some skills by
-name only. A name-only skill has no description in context, so the router cannot match it
-to a request by keyword — it is installed, it costs its name in tokens on every message,
-and it is effectively unroutable.
-
-skillrot models the same budget Claude Code applies: names are always kept, then
-descriptions fill the remaining budget most-used first (the least-used are dropped). Only
-entries the model can see are billed: skills with `disable-model-invocation: true` and
-`skillOverrides` set to `off` or `user-invocable-only` are left out, `name-only` overrides
-cost their name only, and a skill and a command file sharing a name are listed once. Command
-files (`commands/*.md`) count, since they share the listing. The
-budget is 1% of the context window by default; change it with `--budget-fraction` (to
-match `skillListingBudgetFraction`) or `--context-window`.
-
-This is the total-listing counterpart to SR003: SR003 catches one skill whose own
-description runs past the 1,536-character *per-entry* cap; SR030 catches skills whose
-descriptions do not fit the *whole-listing* budget once every other skill is counted. A
-real-world instance: a widely-used library shipped 46 skills whose descriptions summed to
-roughly three times the budget, and Claude Code silently dropped most of them at session
-start.
+SR030 marks descriptions predicted not to fit. Without usage evidence, ordering is a
+deterministic model choice, not the live session's exact list. A retained name can still
+inform selection and direct invocation may remain possible. Use `--context-window`,
+`--budget-fraction` and `--chars-per-token` to match your assumptions. `--fail-over-budget`
+turns estimated overflow into a CI gate; SR030 itself is informational.
